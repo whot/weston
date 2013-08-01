@@ -345,7 +345,8 @@ fallback_process(struct evdev_dispatch *dispatch,
 	case EV_KEY:
 		evdev_process_key(device, event, time);
 		break;
-	case EV_SYN:
+	case EV_SYN: /* FIXME: does not handle SYN_REPORT value 1
+			or SYN_DROPPED */
 		device->pending_events |= EVDEV_SYN;
 		break;
 	}
