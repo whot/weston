@@ -35,6 +35,20 @@
 #define DEFAULT_AXIS_STEP_DISTANCE wl_fixed_from_int(10)
 
 void
+evdev_log(struct evdev_device *device, const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+
+	weston_log("device %-18s '%s': ",
+		   device->devnode, device->devname);
+	weston_vlog_continue(fmt, args);
+
+	va_end(args);
+}
+
+void
 evdev_led_update(struct evdev_device *device, enum weston_led leds)
 {
 	static const struct {
@@ -484,8 +498,8 @@ evdev_handle_device(struct evdev_device *device)
 			if (!TEST_BIT(abs_bits, ABS_MT_SLOT)) {
 				device->mtdev = mtdev_new_open(device->fd);
 				if (!device->mtdev) {
-					weston_log("mtdev required but failed to open for %s\n",
-						   device->devnode);
+					evdev_log(device,
+						  "mtdev required but failed to open\n");
 					return 0;
 				}
 				device->mt.slot = device->mtdev->caps.slot.value;
@@ -510,8 +524,7 @@ evdev_handle_device(struct evdev_device *device)
 		    !TEST_BIT(key_bits, BTN_TOOL_PEN) &&
 		    has_abs) {
 			device->dispatch = evdev_touchpad_create(device);
-			weston_log("input device %s, %s is a touchpad\n",
-				   device->devname, device->devnode);
+			evdev_log(device, "is a touchpad\n");
 		}
 		for (i = KEY_ESC; i < KEY_MAX; i++) {
 			if (i >= BTN_MISC && i < KEY_OK)
@@ -540,9 +553,7 @@ evdev_handle_device(struct evdev_device *device)
 	 * want to adjust the protocol later adding a proper event for dealing
 	 * with accelerometers and implement here accordingly */
 	if (has_abs && !has_key && !device->is_mt) {
-		weston_log("input device %s, %s "
-			   "ignored: unsupported device type\n",
-			   device->devname, device->devnode);
+		evdev_log(device, "ignored: unsupported device type\n");
 		return 0;
 	}
 
@@ -555,8 +566,7 @@ evdev_configure_device(struct evdev_device *device)
 	if ((device->caps &
 	     (EVDEV_MOTION_ABS | EVDEV_MOTION_REL | EVDEV_BUTTON))) {
 		weston_seat_init_pointer(device->seat);
-		weston_log("input device %s, %s is a pointer caps =%s%s%s\n",
-			   device->devname, device->devnode,
+		evdev_log(device, "is a pointer caps =%s%s%s\n",
 			   device->caps & EVDEV_MOTION_ABS ? " absolute-motion" : "",
 			   device->caps & EVDEV_MOTION_REL ? " relative-motion": "",
 			   device->caps & EVDEV_BUTTON ? " button" : "");
@@ -564,13 +574,11 @@ evdev_configure_device(struct evdev_device *device)
 	if ((device->caps & EVDEV_KEYBOARD)) {
 		if (weston_seat_init_keyboard(device->seat, NULL) < 0)
 			return -1;
-		weston_log("input device %s, %s is a keyboard\n",
-			   device->devname, device->devnode);
+		evdev_log(device, "is a keyboard\n");
 	}
 	if ((device->caps & EVDEV_TOUCH)) {
 		weston_seat_init_touch(device->seat);
-		weston_log("input device %s, %s is a touch device\n",
-			   device->devname, device->devnode);
+		evdev_log(device, "is a touch device\n");
 	}
 
 	return 0;
@@ -674,8 +682,7 @@ evdev_notify_keyboard_focus(struct weston_seat *seat,
 		ret = ioctl(device->fd,
 			    EVIOCGKEY(sizeof evdev_keys), evdev_keys);
 		if (ret < 0) {
-			weston_log("failed to get keys for device %s\n",
-				device->devnode);
+			evdev_log(device, "failed to get keys\n");
 			continue;
 		}
 		for (i = 0; i < ARRAY_LENGTH(evdev_keys); i++)
