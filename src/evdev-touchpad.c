@@ -379,7 +379,7 @@ process_fsm_events(struct touchpad_dispatch *touchpad, uint32_t time)
 			}
 			break;
 		default:
-			weston_log("evdev-touchpad: Unknown state %d",
+			evdev_log(touchpad->device, "touchpad: Unknown state %d",
 				   touchpad->fsm.state);
 			touchpad->fsm.state = FSM_IDLE;
 			break;
