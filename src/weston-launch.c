@@ -555,7 +555,8 @@ launch_compositor(struct weston_launch *wl, int argc, char *argv[])
 	if (wl->new_user)
 		setup_session(wl);
 
-	drop_privileges(wl);
+	if (getuid() != geteuid() || getgid() != getegid())
+		drop_privileges(wl);
 
 	if (wl->tty != STDIN_FILENO)
 		setenv_fd("WESTON_TTY_FD", wl->tty);
