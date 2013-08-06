@@ -126,4 +126,6 @@ void
 evdev_notify_keyboard_focus(struct weston_seat *seat,
 			    struct wl_list *evdev_devices);
 
+void
+evdev_log(struct evdev_device *device, const char *fmt, ...);
 #endif /* EVDEV_H */
