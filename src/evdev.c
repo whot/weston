@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <linux/input.h>
@@ -439,13 +440,37 @@ evdev_process_data(struct evdev_device *device, struct input_event *ev,
 	} while(more_events);
 }
 
+static void
+evdev_sync_device(struct evdev_device *device)
+{
+	struct input_event ev[64];
+	size_t sz = ARRAY_LENGTH(ev);
+	size_t nevents = 0;
+	int rc = 1;
+
+	while (rc == LIBEVDEV_READ_STATUS_SYNC) {
+		rc = libevdev_next_event(device->dev,
+					 LIBEVDEV_READ_FLAG_SYNC,
+					 &ev[nevents++]);
+		if (nevents >= sz) {
+			evdev_process_data(device, ev, nevents, sz);
+			nevents = 0;
+		}
+	}
+
+	if (nevents > 0)
+		evdev_process_data(device, ev, nevents, sz);
+}
+
 static int
 evdev_device_data(int fd, uint32_t mask, void *data)
 {
 	struct weston_compositor *ec;
 	struct evdev_device *device = data;
 	struct input_event ev[32];
-	int len;
+	size_t sz = ARRAY_LENGTH(ev);
+	size_t nevents = 0;
+	int rc;
 
 	ec = device->seat->compositor;
 	if (!ec->focus)
@@ -455,16 +480,30 @@ evdev_device_data(int fd, uint32_t mask, void *data)
 	 * per frame and we have to process all the events available on the
 	 * fd, otherwise there will be input lag. */
 	do {
-		len = read(fd, &ev, sizeof ev);
-
-		if (len < 0 || len % sizeof ev[0] != 0) {
+		rc = libevdev_next_event(device->dev, LIBEVDEV_READ_FLAG_NORMAL,
+					 &ev[nevents++]);
+		if (rc < LIBEVDEV_READ_STATUS_SUCCESS) {
+			if (rc == -EAGAIN)
+				break;
 			/* FIXME: call evdev_device_destroy when errno is ENODEV. */
 			return 1;
+		} else if (rc == LIBEVDEV_READ_STATUS_SYNC) {
+			/* SYN_DROPPED received. Process all current events,
+			   then sync up, process the delta and continue. */
+			evdev_process_data(device, ev, nevents, sz);
+			evdev_sync_device(device);
+			nevents = 0;
 		}
 
-		evdev_process_data(device, ev,
-				   len/sizeof(ev[0]), ARRAY_LENGTH(ev));
-	} while (len > 0);
+		if (nevents >= sz) {
+			evdev_process_data(device, ev, nevents, sz);
+			nevents = 0;
+		}
+	} while(rc == LIBEVDEV_READ_STATUS_SUCCESS);
+
+	/* EAGAIN */
+	if (nevents > 0)
+		evdev_process_data(device, ev, nevents, sz);
 
 	return 1;
 }
