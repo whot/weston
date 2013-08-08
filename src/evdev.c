@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <mtdev.h>
+#include <mtdev-plumbing.h>
 
 #include "compositor.h"
 #include "evdev.h"
@@ -403,6 +404,42 @@ evdev_process_events(struct evdev_device *device,
 }
 
 static int
+evdev_mtdev_convert_events(struct evdev_device *device,
+			   struct input_event *ev,
+			   size_t *nevents, size_t max_events)
+{
+	size_t i;
+
+	for (i = 0; i < *nevents; i++)
+		mtdev_put_event(device->mtdev, &ev[i]);
+
+	*nevents = 0;
+
+	while (!mtdev_empty(device->mtdev) && *nevents < max_events)
+		mtdev_get_event(device->mtdev, &ev[*nevents++]);
+
+	return *nevents >= max_events && !mtdev_empty(device->mtdev);
+}
+
+static void
+evdev_process_data(struct evdev_device *device, struct input_event *ev,
+		   size_t nevents, size_t max_events)
+{
+	int more_events;
+	do {
+		more_events = 0;
+		if (device->mtdev)
+			more_events = evdev_mtdev_convert_events(device, ev,
+								 &nevents,
+								 max_events);
+		if (nevents > 0)
+			evdev_process_events(device, ev, nevents);
+
+		nevents = 0;
+	} while(more_events);
+}
+
+static int
 evdev_device_data(int fd, uint32_t mask, void *data)
 {
 	struct weston_compositor *ec;
@@ -418,20 +455,15 @@ evdev_device_data(int fd, uint32_t mask, void *data)
 	 * per frame and we have to process all the events available on the
 	 * fd, otherwise there will be input lag. */
 	do {
-		if (device->mtdev)
-			len = mtdev_get(device->mtdev, fd, ev,
-					ARRAY_LENGTH(ev)) *
-				sizeof (struct input_event);
-		else
-			len = read(fd, &ev, sizeof ev);
+		len = read(fd, &ev, sizeof ev);
 
 		if (len < 0 || len % sizeof ev[0] != 0) {
 			/* FIXME: call evdev_device_destroy when errno is ENODEV. */
 			return 1;
 		}
 
-		evdev_process_events(device, ev, len / sizeof ev[0]);
-
+		evdev_process_data(device, ev,
+				   len/sizeof(ev[0]), ARRAY_LENGTH(ev));
 	} while (len > 0);
 
 	return 1;
