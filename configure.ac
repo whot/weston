@@ -55,7 +55,7 @@ AC_CHECK_HEADERS([execinfo.h])
 
 AC_CHECK_FUNCS([mkostemp strchrnul initgroups])
 
-COMPOSITOR_MODULES="wayland-server >= 1.2.90 pixman-1"
+COMPOSITOR_MODULES="wayland-server >= 1.2.90 pixman-1 libevdev >= 0.4"
 
 AC_ARG_ENABLE(egl, [  --disable-egl],,
               enable_egl=yes)

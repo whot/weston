@@ -27,6 +27,7 @@
 
 #include <linux/input.h>
 #include <wayland-util.h>
+#include <libevdev/libevdev.h>
 
 #define MAX_SLOTS 16
 
@@ -53,6 +54,7 @@ struct evdev_device {
 	struct wl_event_source *source;
 	struct weston_output *output;
 	struct evdev_dispatch *dispatch;
+	struct libevdev *dev;
 	char *devnode;
 	char *devname;
 	int fd;
