@@ -20,6 +20,7 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <config.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>

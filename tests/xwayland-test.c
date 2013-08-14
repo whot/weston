@@ -25,6 +25,7 @@
  * general works with Weston.
  */
 
+#include <config.h>
 #include "weston-test-runner.h"
 
 #include <assert.h>
