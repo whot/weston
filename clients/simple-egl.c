@@ -38,7 +38,7 @@
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
 
-#include <src/weston-egl-ext.h>
+#include "weston-egl-ext.h"
 
 #ifndef EGL_EXT_swap_buffers_with_damage
 #define EGL_EXT_swap_buffers_with_damage 1

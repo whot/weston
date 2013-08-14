@@ -55,7 +55,7 @@ simple_egl_clients_programs =			\
 	weston-simple-egl
 
 weston_simple_egl_SOURCES = simple-egl.c
-weston_simple_egl_CPPFLAGS = $(SIMPLE_EGL_CLIENT_CFLAGS)
+weston_simple_egl_CPPFLAGS = $(SIMPLE_EGL_CLIENT_CFLAGS) -I $(top_srcdir)/src
 weston_simple_egl_LDADD = $(SIMPLE_EGL_CLIENT_LIBS) -lm
 endif
 
