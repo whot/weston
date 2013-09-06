@@ -32,6 +32,7 @@
 
 #include "../shared/os-compatibility.h"
 #include "compositor.h"
+#include "input-device-server-protocol.h"
 
 static void
 empty_region(pixman_region32_t *region)
@@ -77,6 +78,7 @@ lose_pointer_focus(struct wl_listener *listener, void *data)
 		container_of(listener, struct weston_pointer, focus_listener);
 
 	pointer->focus_resource = NULL;
+	pointer->focus_resource_input_device = NULL; /* FIXME: move */
 }
 
 static void
@@ -230,7 +232,7 @@ default_grab_key(struct weston_keyboard_grab *grab,
 	}
 }
 
-static struct wl_resource *
+struct wl_resource *
 find_resource_for_surface(struct wl_list *list, struct weston_surface *surface)
 {
 	if (!surface)
@@ -456,6 +458,7 @@ weston_pointer_set_focus(struct weston_pointer *pointer,
 		pointer->focus_serial = serial;
 	}
 
+	input_device_set_focus(pointer, surface);
 	pointer->focus_resource = resource;
 	pointer->focus = surface;
 	wl_signal_emit(&pointer->focus_signal, pointer);

@@ -213,15 +213,22 @@ evdev_process_relative(struct evdev_device *device,
 
 		}
 	}
+	notify_extra_axis(device->seat, time,
+			  (e->type << 8) | e->code, e->value);
 }
 
 static inline void
-evdev_process_absolute(struct evdev_device *device, struct input_event *e)
+evdev_process_absolute(struct evdev_device *device, struct input_event *e,
+		       uint32_t time)
 {
 	if (device->is_mt) {
 		evdev_process_touch(device, e);
+		/* FIXME: need to send extra events for touch events on a
+		   per-slot basis */
 	} else {
 		evdev_process_absolute_motion(device, e);
+		notify_extra_axis(device->seat, time,
+				  (e->type << 8) | e->code, e->value);
 	}
 }
 
@@ -340,7 +347,7 @@ fallback_process(struct evdev_dispatch *dispatch,
 		evdev_process_relative(device, event, time);
 		break;
 	case EV_ABS:
-		evdev_process_absolute(device, event);
+		evdev_process_absolute(device, event, time);
 		break;
 	case EV_KEY:
 		evdev_process_key(device, event, time);
@@ -348,6 +355,7 @@ fallback_process(struct evdev_dispatch *dispatch,
 	case EV_SYN: /* FIXME: does not handle SYN_REPORT value 1
 			or SYN_DROPPED */
 		device->pending_events |= EVDEV_SYN;
+		notify_frame(device->seat, time);
 		break;
 	}
 }

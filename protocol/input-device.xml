@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<protocol name="input_device">
+
+  <copyright>
+    Copyright © 2013 Red Hat, Inc.
+
+    Permission to use, copy, modify, distribute, and sell this
+    software and its documentation for any purpose is hereby granted
+    without fee, provided that the above copyright notice appear in
+    all copies and that both that copyright notice and this permission
+    notice appear in supporting documentation, and that the name of
+    the copyright holders not be used in advertising or publicity
+    pertaining to distribution of the software without specific,
+    written prior permission.  The copyright holders make no
+    representations about the suitability of this software for any
+    purpose.  It is provided "as is" without express or implied
+    warranty.
+
+    THE COPYRIGHT HOLDERS DISCLAIM ALL WARRANTIES WITH REGARD TO THIS
+    SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+    FITNESS, IN NO EVENT SHALL THE COPYRIGHT HOLDERS BE LIABLE FOR ANY
+    SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+    WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN
+    AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION,
+    ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+    THIS SOFTWARE.
+  </copyright>
+
+  <!--
+	Principle:
+	this protocol augments the core wayland protocol with axis events.
+	Each core event is followed by additional axis events (A) until a
+	frame event (F) denotes the end of a sequence.
+
+	In core protocol, two motion events would be:
+		M M
+	Here, two motion events would be:
+		M A A F M A A F
+	A motion + button event, triggered by the same evdev event:
+		M B A A A F
+	A motion + button event, triggered by the two evdev events:
+		M A A A F B A A F
+	Only changed axes are sent, so a sequence may simply be:
+		M F M F
+
+	Note that the order of events is undefined except for the frame
+	event, so the actual order may be M A A B A F, or A M F. The only
+	guarantee this gives is that all axis and core events are sent
+	before a frame event.
+   -->
+
+
+  <interface name="wl_input_device" version="1">
+    <enum name="axis">
+      <entry name="relative_axis" value="0x200">
+	<description summary="relative axis event">
+	  Offset for relative axes as defined for the EV_REL set in
+	  linux/input.h. The LSB refers to the axis code, i.e. an axis
+	  numbered 0x203 is equivalent to REL_RX.
+
+	  Axis values are in device coordinate range.
+
+	  The offset for EV_REL axis is (EV_REL &lt;&lt; 8).
+	</description>
+      </entry>
+      <entry name="absolute_axis" value="0x300">
+	<description summary="absolute axis event">
+	  Offset for absolute axes as defined for the EV_ABS set in
+	  linux/input.h. The LSB refers to the axis code, i.e. an axis
+	  numbered 0x318 is equivalent to ABS_PRESSURE.
+
+	  Axis values are in device coordinate range.
+
+	  The offset for EV_ABS axis is (EV_ABS &lt;&lt; 8).
+	</description>
+      </entry>
+    </enum>
+
+    <enum name="capability">
+      <entry name="key" value="1" description="device can send key events"/>
+      <entry name="button" value="2" description="device can send button events"/>
+      <entry name="rel_axis" value="4" description="device can send relative events"/>
+      <entry name="abs_axis" value="8" description="device can send absolute events"/>
+      <entry name="touch" value="16" description="device can send touch events"/>
+    </enum>
+
+    <request name="release" type="destructor">
+	    <description summary="release the device object"/>
+    </request>
+
+    <request name="get_axes">
+      <description summary="request axis information">
+	Request axis information from a device. Whe a client sends a
+	wl_input_device.get_axes request, the compositor will emit a
+	wl_input_device.axis_capability event for each axis on the device.
+	To mark the end of the burst of events, the client can use the
+	wl_display.sync request immediately after calling wl_input_device.get_axes.
+      </description>
+    </request>
+
+    <event name="axis_capability">
+      <description summary="axis description">
+	For relative devices, min and max are 0. A resolution, fuzz, or flat of 0
+	denotes an unknown resolution, fuzz, or flat, respectively.
+
+	Note that while the min/max values are announced by the device, the value is
+	not clamped to the actual range by the compositor. A device may send values
+	outside this range.
+
+	This event is sent when a client registers for the interface on a
+	specific device.
+      </description>
+      <arg name="axis" type="uint" />
+      <arg name="min" type="int" summary="minimum axis value, inclusive"/>
+      <arg name="max" type="int" summary="maximum axis value, inclusive"/>
+      <arg name="resolution" type="uint" summary="resolution in units/mm"/>
+      <arg name="fuzz" type="uint"/>
+      <arg name="flat" type="uint"/>
+    </event>
+
+    <event name="axis">
+      <description summary="input device axis event">
+	Extended axis notification. If axis events cause a wl_pointer event, that
+	event is sent first. Axis events are sent as needed until all value
+	changes have been communicated.
+
+	An axis event contains the data in device coordinate space (where
+	applicable) but transformed to match. For example, if a surface is
+	upside-down, the X and Y axes will be adjusted to match the
+	respective relative position on the surface rather than the absolute
+	position on the device.
+
+	Multiple events may be sent, terminated by a frame event.
+      </description>
+
+      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
+      <!-- FIXME: could split this into type (i.e. cap) + axis number -->
+      <arg name="axis" type="uint" summary="axis number for this event"/>
+      <arg name="value" type="fixed"/>
+    </event>
+
+    <event name="frame">
+      <description summary="end of axis events">
+	Indicates the end of an event sequence.
+
+	A frame event is synchronised with the wl_pointer interface, and the last event
+	to be sent before the next wl_pointer event (if any).
+      </description>
+      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
+    </event>
+
+
+    <!-- FIXME: is this event really needed? if we have a button event that
+	 doesn't change the state it shouldn't be acted on (inconsistency otherwise)
+
+	 likewise, do we need a key event here?
+
+    <event name="button">
+      <description summary="input device button event">
+	Device button click and release notifications.
+
+	The location of the click is given by the last motion or
+	enter event.
+        The time argument is a timestamp with millisecond
+        granularity, with an undefined base.
+
+	The compositor may keep a combined state of buttons across all devices in a
+	seat, and a wl_pointer::button even on a particular device may not
+	be sent if it matches an alread-set button in the seat.
+
+	This button event notifies a client about the change on this device only.
+      </description>
+
+      <arg name="serial" type="uint"/>
+      <arg name="time" type="uint" summary="timestamp with millisecond granularity"/>
+      <arg name="device" type="object" interface="wl_input_device" summary="the device generating the event"/>
+      <arg name="button" type="uint" summary="button as pressed on this device" />
+      <arg name="state" type="uint" summary="state on this device only" />
+    </event>
+    -->
+  </interface>
+
+  <!-- FIXME: needs tie-in with the seat somehow -->
+  <interface name="wl_input_device_manager" version="1">
+    <description summary="manager for input devices">
+      Manges the devices belonging to a seat and notifies the client about
+      new devices, or devices being removed.
+    </description>
+
+    <event name="added">
+      <arg name="id" type="new_id" interface="wl_input_device" summary="the newly added input_device " />
+      <arg name="name" type="string" summary="the device name"/>
+      <arg name="vid" type="uint" summary="vendor id"/>
+      <arg name="pid" type="uint" summary="product id"/>
+      <arg name="phys" type="string" />
+      <arg name="uniq" type="string" />
+      <arg name="capabilities" type="uint" />
+    </event>
+
+    <event name="removed">
+      <arg name="id" type="object" interface="wl_input_device" summary="the input_device removed" />
+    </event>
+
+    <request name="get_devices">
+      <description summary="list devices on this seat" />
+      <!-- FIXME: this should take a seat argument -->
+    </request>
+  </interface>
+</protocol>

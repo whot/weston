@@ -60,6 +60,7 @@ struct shell_surface;
 struct weston_seat;
 struct weston_output;
 struct input_method;
+struct input_device_manager;
 
 enum weston_keyboard_modifier {
 	MODIFIER_CTRL = (1 << 0),
@@ -302,8 +303,10 @@ struct weston_pointer {
 	struct weston_seat *seat;
 
 	struct wl_list resource_list;
+
 	struct weston_surface *focus;
 	struct wl_resource *focus_resource;
+	struct wl_resource *focus_resource_input_device;
 	struct wl_listener focus_listener;
 	uint32_t focus_serial;
 	struct wl_signal focus_signal;
@@ -330,6 +333,7 @@ struct weston_touch {
 	struct wl_list resource_list;
 	struct weston_surface *focus;
 	struct wl_resource *focus_resource;
+	struct wl_resource *focus_resource_input_device; /* FIXME not hooked up yet */
 	struct wl_listener focus_listener;
 	uint32_t focus_serial;
 	struct wl_signal focus_signal;
@@ -484,6 +488,8 @@ struct weston_seat {
 
 	struct input_method *input_method;
 	char *seat_name;
+
+	struct input_device_manager *input_device_manager;
 };
 
 enum {
@@ -895,6 +901,11 @@ void
 notify_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
 	    wl_fixed_t value);
 void
+notify_extra_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
+	    wl_fixed_t value);
+void
+notify_frame(struct weston_seat *seat, uint32_t time);
+void
 notify_key(struct weston_seat *seat, uint32_t time, uint32_t key,
 	   enum wl_keyboard_key_state state,
 	   enum weston_key_state_update update_state);
@@ -1166,6 +1177,9 @@ text_cursor_position_notifier_create(struct weston_compositor *ec);
 int
 text_backend_init(struct weston_compositor *ec);
 
+void
+input_device_backend_init(struct weston_compositor *ec);
+
 struct weston_process;
 typedef void (*weston_process_cleanup_func_t)(struct weston_process *process,
 					    int status);
@@ -1234,6 +1248,13 @@ weston_transformed_rect(int width, int height,
 			enum wl_output_transform transform,
 			int32_t scale,
 			pixman_box32_t rect);
+
+
+struct wl_resource*
+find_resource_for_surface(struct wl_list *list, struct weston_surface *surface);
+
+void
+input_device_set_focus(struct weston_pointer *pointer, struct weston_surface *surface);
 
 #ifdef  __cplusplus
 }

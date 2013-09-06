@@ -32,6 +32,7 @@ AM_CPPFLAGS =					\
 if BUILD_SIMPLE_CLIENTS
 simple_clients_programs =			\
 	weston-simple-shm			\
+	weston-input-devices			\
 	weston-simple-touch
 
 weston_simple_shm_SOURCES = simple-shm.c 	\
@@ -45,6 +46,13 @@ weston_simple_touch_SOURCES = simple-touch.c	\
 	../shared/os-compatibility.h
 weston_simple_touch_CPPFLAGS = $(SIMPLE_CLIENT_CFLAGS)
 weston_simple_touch_LDADD = $(SIMPLE_CLIENT_LIBS)
+
+weston_input_devices_SOURCES = input-devices.c	\
+	input-device-protocol.c		\
+	input-device-client-protocol.h		\
+	../shared/os-compatibility.c		\
+	../shared/os-compatibility.h
+weston_input_devices_LDADD = libtoytoolkit.la
 endif
 
 if BUILD_SIMPLE_EGL_CLIENTS
@@ -214,6 +222,8 @@ BUILT_SOURCES =					\
 	text-cursor-position-protocol.c		\
 	text-protocol.c				\
 	text-client-protocol.h			\
+	input-device-protocol.c			\
+	input-device-client-protocol.h		\
 	input-method-protocol.c			\
 	input-method-client-protocol.h		\
 	desktop-shell-client-protocol.h		\
