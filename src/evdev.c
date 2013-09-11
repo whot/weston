@@ -522,8 +522,7 @@ evdev_handle_device(struct evdev_device *device)
 	if (libevdev_has_event_type(device->dev, EV_ABS)) {
 		has_abs = 1;
 
-		if (libevdev_has_event_code(device->dev, EV_ABS, ABS_WHEEL) ||
-		    libevdev_has_event_code(device->dev, EV_ABS, ABS_GAS) ||
+		if (libevdev_has_event_code(device->dev, EV_ABS, ABS_GAS) ||
 		    libevdev_has_event_code(device->dev, EV_ABS, ABS_BRAKE) ||
 		    libevdev_has_event_code(device->dev, EV_ABS, ABS_HAT0X)) {
 			weston_log("device %s is a joystick, ignoring\n",
