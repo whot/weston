@@ -481,7 +481,7 @@ evdev_device_data(int fd, uint32_t mask, void *data)
 	 * fd, otherwise there will be input lag. */
 	do {
 		rc = libevdev_next_event(device->dev, LIBEVDEV_READ_FLAG_NORMAL,
-					 &ev[nevents++]);
+					 &ev[nevents]);
 		if (rc < LIBEVDEV_READ_STATUS_SUCCESS) {
 			if (rc == -EAGAIN)
 				break;
@@ -493,7 +493,8 @@ evdev_device_data(int fd, uint32_t mask, void *data)
 			evdev_process_data(device, ev, nevents, sz);
 			evdev_sync_device(device);
 			nevents = 0;
-		}
+		} else if (rc == LIBEVDEV_READ_STATUS_SUCCESS)
+			nevents++;
 
 		if (nevents >= sz) {
 			evdev_process_data(device, ev, nevents, sz);
