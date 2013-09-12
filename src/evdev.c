@@ -488,8 +488,15 @@ evdev_device_data(int fd, uint32_t mask, void *data)
 			/* FIXME: call evdev_device_destroy when errno is ENODEV. */
 			return 1;
 		} else if (rc == LIBEVDEV_READ_STATUS_SYNC) {
-			/* SYN_DROPPED received. Process all current events,
-			   then sync up, process the delta and continue. */
+			/* SYN_DROPPED received. Insert a fake SYN_REPORT
+			   event, then process all current events, then sync
+			   up, process the delta and continue.
+			 */
+			ev[nevents].type = EV_SYN;
+			ev[nevents].code = SYN_REPORT;
+			ev[nevents].value = 0;
+			nevents++;
+
 			evdev_process_data(device, ev, nevents, sz);
 			evdev_sync_device(device);
 			nevents = 0;
