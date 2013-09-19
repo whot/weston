@@ -51,9 +51,30 @@ tablet_destroy(struct evdev_dispatch *dispatch)
 		(struct tablet_dispatch *) dispatch;
 	struct weston_tablet *t = tablet->tablet;
 
+	wl_list_remove(&tablet->tablet->describe_listener.link);
 	weston_tablet_manager_remove_device(t);
 
 	free(dispatch);
+}
+
+static void
+tablet_describe(struct wl_listener *listener, void *data)
+{
+	struct wl_resource *resource = data;
+	struct weston_tablet *t = wl_resource_get_user_data(resource);
+	struct wl_array buttons;
+	uint32_t *p;
+
+	/* FIXME: evdev.c doesn't cache this atm */
+	notify_tablet_capability_axis(resource, ABS_X, 0, 1000, 0, 0, 0);
+	notify_tablet_capability_axis(resource, ABS_Y, 0, 1000, 0, 0, 0);
+	notify_tablet_capability_axis(resource, ABS_PRESSURE, 0, 1000, 0, 0, 0);
+
+	wl_array_init(&buttons);
+	p = wl_array_add(&buttons, sizeof *p);
+	*p = BTN_STYLUS;
+
+	notify_tablet_capability_button(resource, &buttons);
 }
 
 struct evdev_dispatch_interface tablet_interface = {
@@ -84,6 +105,9 @@ tablet_init(struct tablet_dispatch *tablet,
 	tablet->tablet = t;
 
 	weston_tablet_manager_add_device(device->seat->tablet_manager, t);
+
+	t->describe_listener.notify = tablet_describe;
+	wl_signal_add(&t->describe_signal, &t->describe_listener);
 
 	return 0;
 }

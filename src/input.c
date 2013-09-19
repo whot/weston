@@ -419,6 +419,8 @@ static void
 tablet_describe(struct wl_client *client,
 		struct wl_resource *resource)
 {
+	struct weston_tablet *tablet = wl_resource_get_user_data(resource);
+	wl_signal_emit(&tablet->describe_signal, resource);
 }
 
 static void
@@ -543,6 +545,7 @@ weston_tablet_create(void)
 	tablet = zalloc(sizeof *tablet);
 	wl_list_init(&tablet->link);
 	wl_list_init(&tablet->resource_list);
+	wl_signal_init(&tablet->describe_signal);
 
 	return tablet;
 }
@@ -553,6 +556,31 @@ weston_tablet_destroy(struct weston_tablet *tablet)
 	wl_list_remove(&tablet->link);
 	free(tablet->name);
 	free(tablet);
+}
+
+WL_EXPORT void
+notify_tablet_capability_axis(struct wl_resource *resource, int axis,
+			      int min, int max, int fuzz, int flat, int res)
+{
+	weston_log("%s\n", __func__);
+	wl_tablet_send_axis_capability(resource, WL_TABLET_AXIS_TYPE_ABSOLUTE,
+				       axis, min, max, fuzz, flat, res);
+}
+
+WL_EXPORT void
+notify_tablet_capability_rel_axis(struct wl_resource *resource, int axis)
+{
+	weston_log("%s\n", __func__);
+	wl_tablet_send_axis_capability(resource, WL_TABLET_AXIS_TYPE_RELATIVE,
+				       axis, 0, 0, 0, 0, 0);
+}
+
+WL_EXPORT void
+notify_tablet_capability_button(struct wl_resource *resource,
+				struct wl_array *buttons)
+{
+	weston_log("%s\n", __func__);
+	wl_tablet_send_button_capability(resource, buttons);
 }
 
 WL_EXPORT void

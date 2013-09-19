@@ -473,6 +473,9 @@ struct weston_tablet {
 
 	struct wl_resource *focus_resource;
 	struct wl_list resource_list;
+
+	struct wl_listener describe_listener;
+	struct wl_signal describe_signal;
 };
 
 struct weston_tablet_manager {
@@ -950,6 +953,14 @@ notify_touch(struct weston_seat *seat, uint32_t time, int touch_id,
 	     wl_fixed_t x, wl_fixed_t y, int touch_type);
 
 void
+notify_tablet_capability_axis(struct wl_resource *resource, int axis,
+			      int min, int max, int fuzz, int flat, int res);
+void
+notify_tablet_capability_rel_axis(struct wl_resource *resource, int axis);
+void
+notify_tablet_capability_button(struct wl_resource *resource,
+				struct wl_array *buttons);
+
 weston_layer_init(struct weston_layer *layer, struct wl_list *below);
 
 void
