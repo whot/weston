@@ -422,21 +422,55 @@ weston_tablet_manager_destroy(struct weston_tablet_manager *manager)
 	free(manager);
 }
 
+static void
+weston_tablet_manager_notify(struct wl_resource *resource,
+			     struct weston_tablet *tablet)
+{
+	struct wl_resource *cr;
+
+	weston_log("Sending tablet add\n");
+
+	cr = wl_resource_create(wl_resource_get_client(resource),
+				&wl_tablet_interface, 1,
+				0);
+	wl_tablet_manager_send_device_added(resource, cr,
+					    "name", 1, 2, "", "",
+					    WL_TABLET_TOOL_TYPE_PEN);
+	wl_list_insert(&tablet->resource_list, wl_resource_get_link(cr));
+}
+
 WL_EXPORT void
 weston_tablet_manager_add_device(struct weston_tablet_manager *manager,
 				 struct weston_tablet *tablet)
 {
+	struct wl_resource *r;
+
 	tablet->manager = manager;
 	wl_list_insert(&manager->tablet_list, &tablet->link);
-	/* FIXME: device added notification */
+
+	wl_resource_for_each(r, &manager->resource_list) {
+		weston_tablet_manager_notify(r, tablet);
+	}
 }
 
 WL_EXPORT void
 weston_tablet_manager_remove_device(struct weston_tablet *tablet)
 {
-	wl_list_remove(&tablet->link);
-	/* FIXME: device removed notification */
+	struct wl_resource *r;
+
+	/* This doesn't seem right, maybe move removed into wl_tablet */
+	wl_resource_for_each(r, &tablet->manager->resource_list) {
+		struct wl_client *client;
+		struct wl_resource *device;
+
+		client = wl_resource_get_client(r);
+		device = wl_resource_find_for_client(&tablet->resource_list, client);
+		if (device)
+			wl_tablet_manager_send_device_removed(r, device);
+	}
+
 	/* FIXME: if last tablet, remove manager */
+	wl_list_remove(&tablet->link);
 }
 
 WL_EXPORT struct weston_tablet *
