@@ -422,6 +422,25 @@ weston_tablet_manager_destroy(struct weston_tablet_manager *manager)
 	free(manager);
 }
 
+WL_EXPORT struct weston_tablet *
+weston_tablet_create(void)
+{
+	struct weston_tablet *tablet;
+
+	tablet = zalloc(sizeof *tablet);
+	wl_list_init(&tablet->link);
+
+	return tablet;
+}
+
+WL_EXPORT void
+weston_tablet_destroy(struct weston_tablet *tablet)
+{
+	wl_list_remove(&tablet->link);
+	free(tablet->name);
+	free(tablet);
+}
+
 static void
 seat_send_updated_caps(struct weston_seat *seat)
 {

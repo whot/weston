@@ -384,6 +384,17 @@ weston_touch_start_grab(struct weston_touch *device,
 void
 weston_touch_end_grab(struct weston_touch *touch);
 
+struct weston_tablet_manager *
+weston_tablet_manager_create(void);
+void
+weston_tablet_manager_destroy(struct weston_tablet_manager *manager);
+
+struct weston_tablet *
+weston_tablet_create(void);
+
+void
+weston_tablet_destroy(struct weston_tablet *tablet);
+
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
 
@@ -1119,6 +1130,8 @@ int
 weston_seat_init_keyboard(struct weston_seat *seat, struct xkb_keymap *keymap);
 void
 weston_seat_init_touch(struct weston_seat *seat);
+void
+weston_seat_init_tablet_manager(struct weston_seat *seat);
 void
 weston_seat_repick(struct weston_seat *seat);
 
