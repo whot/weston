@@ -293,12 +293,20 @@ struct touch_point {
 	struct wl_list link;
 };
 
+struct tablet {
+	struct wl_tablet *id;
+	struct wl_list link;
+	char *name;
+};
+
 struct input {
 	struct display *display;
 	struct wl_seat *seat;
 	struct wl_pointer *pointer;
 	struct wl_keyboard *keyboard;
 	struct wl_touch *touch;
+	struct wl_tablet_manager *tablet_manager;
+	struct wl_list tablets;
 	struct wl_list touch_point_list;
 	struct window *pointer_focus;
 	struct window *keyboard_focus;
@@ -3360,6 +3368,60 @@ static const struct wl_touch_listener touch_listener = {
 	touch_handle_cancel,
 };
 
+
+static void
+tablet_added(void *data,
+	     struct wl_tablet_manager *wl_tablet_manager,
+	     struct wl_tablet *id,
+	     const char *name,
+	     uint32_t vid,
+	     uint32_t pid,
+	     const char *phys,
+	     const char *uniq,
+	     uint32_t type)
+{
+	struct input *input = data;
+	struct tablet *t;
+
+	t = zalloc(sizeof *t);
+	t->name = strdup(name);
+
+	printf("---- tablet %s\n", name);
+
+	wl_list_insert(&input->tablets, &t->link);
+	wl_tablet_describe(id);
+}
+
+static void tablet_free(struct tablet *tablet)
+{
+	wl_list_remove(&tablet->link);
+	free(tablet->name);
+	free(tablet);
+}
+
+static void
+tablet_removed(void *data,
+	       struct wl_tablet_manager *wl_tablet_manager,
+	       struct wl_tablet *id)
+{
+	struct input *input = data;
+	struct tablet *tablet;
+
+	/* FIXME: yeah, really needs to go into wl_tablet */
+	wl_list_for_each(tablet, &input->tablets, link) {
+		if (tablet->id == id) {
+			tablet_free(tablet);
+			break;
+		}
+	}
+}
+
+
+static const struct wl_tablet_manager_listener tablet_manager_listener = {
+	tablet_added,
+	tablet_removed,
+};
+
 static void
 seat_handle_capabilities(void *data, struct wl_seat *seat,
 			 enum wl_seat_capability caps)
@@ -3393,6 +3455,15 @@ seat_handle_capabilities(void *data, struct wl_seat *seat,
 	} else if (!(caps & WL_SEAT_CAPABILITY_TOUCH) && input->touch) {
 		wl_touch_destroy(input->touch);
 		input->touch = NULL;
+	}
+
+	if ((caps & WL_SEAT_CAPABILITY_TABLETS) && !input->tablet_manager) {
+		input->tablet_manager = wl_seat_get_tablet_manager(seat);
+		wl_tablet_manager_set_user_data(input->tablet_manager, input);
+		wl_tablet_manager_add_listener(input->tablet_manager, &tablet_manager_listener, input);
+	} else if (!(caps & WL_SEAT_CAPABILITY_TABLETS) && input->tablet_manager) {
+		wl_tablet_manager_destroy(input->tablet_manager);
+		input->tablet_manager = NULL;
 	}
 }
 
@@ -4972,6 +5043,7 @@ display_add_input(struct display *d, uint32_t id)
 	input->keyboard_focus = NULL;
 	wl_list_init(&input->touch_point_list);
 	wl_list_insert(d->input_list.prev, &input->link);
+	wl_list_init(&input->tablets);
 
 	wl_seat_add_listener(input->seat, &seat_listener, input);
 	wl_seat_set_user_data(input->seat, input);
