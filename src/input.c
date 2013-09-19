@@ -415,6 +415,39 @@ seat_send_updated_caps(struct weston_seat *seat)
 	}
 }
 
+static void
+tablet_describe(struct wl_client *client,
+		struct wl_resource *resource)
+{
+}
+
+static void
+tablet_release(struct wl_client *client,
+	       struct wl_resource *resource)
+{
+}
+
+static void
+tablet_bind(struct wl_client *client,
+	    struct wl_resource *resource,
+	    struct wl_resource *surface)
+{
+}
+
+static void
+tablet_unbind(struct wl_client *client,
+	      struct wl_resource *resource)
+{
+}
+
+const struct wl_tablet_interface tablet_interface = {
+	tablet_describe,
+	tablet_release,
+	tablet_bind,
+	tablet_unbind
+};
+
+
 WL_EXPORT struct weston_tablet_manager *
 weston_tablet_manager_create(void)
 {
@@ -453,6 +486,9 @@ weston_tablet_manager_notify(struct wl_resource *resource,
 	cr = wl_resource_create(wl_resource_get_client(resource),
 				&wl_tablet_interface, 1,
 				0);
+	wl_resource_set_implementation(cr, &tablet_interface,
+				       tablet, NULL);
+
 	wl_tablet_manager_send_device_added(resource, cr,
 					    "name", 1, 2, "", "",
 					    WL_TABLET_TOOL_TYPE_PEN);
