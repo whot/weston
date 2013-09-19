@@ -58,6 +58,8 @@ struct weston_surface;
 struct weston_buffer;
 struct shell_surface;
 struct weston_seat;
+struct weston_tablet_manager;
+struct weston_tablet;
 struct weston_output;
 struct input_method;
 
@@ -388,6 +390,11 @@ struct weston_tablet_manager *
 weston_tablet_manager_create(void);
 void
 weston_tablet_manager_destroy(struct weston_tablet_manager *manager);
+void
+weston_tablet_manager_add_device(struct weston_tablet_manager *manager,
+				 struct weston_tablet *tablet);
+void
+weston_tablet_manager_remove_device(struct weston_tablet *tablet);
 
 struct weston_tablet *
 weston_tablet_create(void);
@@ -460,10 +467,12 @@ struct weston_keyboard {
 };
 
 struct weston_tablet {
-	struct weston_seat *seat;
-	struct weston_output *output;
+	struct weston_tablet_manager *manager;
 	struct wl_list link; /* tablet_manager->tablet_list */
 	char *name;
+
+	struct wl_resource *focus_resource;
+	struct wl_list resource_list;
 };
 
 struct weston_tablet_manager {

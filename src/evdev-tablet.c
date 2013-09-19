@@ -22,12 +22,15 @@
 
 #include "config.h"
 
+#include "compositor.h"
 #include "evdev.h"
 #include "zalloc.h"
 
 struct tablet_dispatch {
 	struct evdev_dispatch base;
 	struct evdev_device *device;
+
+	struct weston_tablet *tablet;
 };
 
 static void
@@ -46,6 +49,9 @@ tablet_destroy(struct evdev_dispatch *dispatch)
 {
 	struct tablet_dispatch *tablet =
 		(struct tablet_dispatch *) dispatch;
+	struct weston_tablet *t = tablet->tablet;
+
+	weston_tablet_manager_remove_device(t);
 
 	free(dispatch);
 }
@@ -59,8 +65,25 @@ static int
 tablet_init(struct tablet_dispatch *tablet,
 	    struct evdev_device *device)
 {
+	struct weston_tablet *t;
+
 	tablet->base.interface = &tablet_interface;
 	tablet->device = device;
+
+
+	t = weston_tablet_create();
+	if (!tablet)
+		return 1;
+
+	weston_seat_init_tablet_manager(device->seat);
+	if (!device->seat->tablet_manager) {
+		weston_tablet_destroy(t);
+		return 1;
+	}
+
+	tablet->tablet = t;
+
+	weston_tablet_manager_add_device(device->seat->tablet_manager, t);
 
 	return 0;
 }

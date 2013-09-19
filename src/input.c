@@ -422,6 +422,23 @@ weston_tablet_manager_destroy(struct weston_tablet_manager *manager)
 	free(manager);
 }
 
+WL_EXPORT void
+weston_tablet_manager_add_device(struct weston_tablet_manager *manager,
+				 struct weston_tablet *tablet)
+{
+	tablet->manager = manager;
+	wl_list_insert(&manager->tablet_list, &tablet->link);
+	/* FIXME: device added notification */
+}
+
+WL_EXPORT void
+weston_tablet_manager_remove_device(struct weston_tablet *tablet)
+{
+	wl_list_remove(&tablet->link);
+	/* FIXME: device removed notification */
+	/* FIXME: if last tablet, remove manager */
+}
+
 WL_EXPORT struct weston_tablet *
 weston_tablet_create(void)
 {
@@ -429,6 +446,7 @@ weston_tablet_create(void)
 
 	tablet = zalloc(sizeof *tablet);
 	wl_list_init(&tablet->link);
+	wl_list_init(&tablet->resource_list);
 
 	return tablet;
 }
