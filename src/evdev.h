@@ -28,6 +28,8 @@
 #include <linux/input.h>
 #include <wayland-util.h>
 
+#include "compositor.h"
+
 #define MAX_SLOTS 16
 
 enum evdev_event_type {
