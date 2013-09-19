@@ -1467,6 +1467,7 @@ seat_get_tablets(struct wl_client *client, struct wl_resource *resource,
 		 uint32_t id)
 {
 	struct weston_seat *seat = wl_resource_get_user_data(resource);
+	struct weston_tablet *tablet;
 	struct wl_resource *cr;
 
 	if (!seat->tablet_manager)
@@ -1485,7 +1486,9 @@ seat_get_tablets(struct wl_client *client, struct wl_resource *resource,
 				       unbind_resource);
 #endif
 
-	/* FIXME: send device_added */
+	wl_list_for_each(tablet, &seat->tablet_manager->tablet_list, link) {
+		weston_tablet_manager_notify(cr, tablet);
+	}
 }
 
 static const struct wl_seat_interface seat_interface = {
