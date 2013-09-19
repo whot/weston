@@ -510,6 +510,14 @@ evdev_handle_device(struct evdev_device *device)
 				device->mt.slot = absinfo.value;
 			}
 		}
+		if (TEST_BIT(abs_bits, BTN_TOOL_PEN) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_RUBBER) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_BRUSH) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_PENCIL) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_AIRBRUSH) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_MOUSE) ||
+		    TEST_BIT(abs_bits, BTN_TOOL_LENS))
+			device->caps |= EVDEV_STYLUS;
 	}
 	if (TEST_BIT(ev_bits, EV_REL)) {
 		ioctl(device->fd, EVIOCGBIT(EV_REL, sizeof(rel_bits)),
@@ -526,7 +534,12 @@ evdev_handle_device(struct evdev_device *device)
 		    has_abs) {
 			device->dispatch = evdev_touchpad_create(device);
 			evdev_log(device, "is a touchpad\n");
+		} else if (TEST_BIT(key_bits, BTN_TOOL_PEN) &&
+				has_abs) {
+			device->dispatch = evdev_tablet_create(device);
+			evdev_log(device, "is a graphics tablet\n");
 		}
+
 		for (i = KEY_ESC; i < KEY_MAX; i++) {
 			if (i >= BTN_MISC && i < KEY_OK)
 				continue;
@@ -580,6 +593,10 @@ evdev_configure_device(struct evdev_device *device)
 	if ((device->caps & EVDEV_TOUCH)) {
 		weston_seat_init_touch(device->seat);
 		evdev_log(device, "is a touch device\n");
+	}
+	if ((device->caps & EVDEV_STYLUS)) {
+		weston_seat_init_tablet_manager(device->seat);
+		evdev_log(device, "is a graphics tablet\n");
 	}
 
 	return 0;

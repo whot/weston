@@ -147,6 +147,7 @@ drm_backend_la_SOURCES =			\
 	udev-seat.h				\
 	evdev.c					\
 	evdev.h					\
+	evdev-tablet.c				\
 	evdev-touchpad.c			\
 	launcher-util.c				\
 	launcher-util.h				\

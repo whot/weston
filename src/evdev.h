@@ -47,6 +47,7 @@ enum evdev_device_capability {
 	EVDEV_MOTION_ABS = (1 << 2),
 	EVDEV_MOTION_REL = (1 << 3),
 	EVDEV_TOUCH = (1 << 4),
+	EVDEV_STYLUS = (1 << 5),
 };
 
 struct evdev_device {
@@ -114,6 +115,9 @@ struct evdev_dispatch {
 
 struct evdev_dispatch *
 evdev_touchpad_create(struct evdev_device *device);
+
+struct evdev_dispatch *
+evdev_tablet_create(struct evdev_device *device);
 
 void
 evdev_led_update(struct evdev_device *device, enum weston_led leds);
