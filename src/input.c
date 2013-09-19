@@ -489,8 +489,14 @@ weston_tablet_manager_remove_device(struct weston_tablet *tablet)
 			wl_tablet_manager_send_device_removed(r, device);
 	}
 
-	/* FIXME: if last tablet, remove manager */
 	wl_list_remove(&tablet->link);
+
+	if (wl_list_empty(&tablet->manager->tablet_list)) {
+		struct weston_seat *seat = tablet->manager->seat;
+		weston_tablet_manager_destroy(seat->tablet_manager);
+		seat->tablet_manager = NULL;
+		seat_send_updated_caps(seat);
+	}
 }
 
 WL_EXPORT struct weston_tablet *
