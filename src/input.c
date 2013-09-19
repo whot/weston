@@ -395,6 +395,33 @@ weston_touch_destroy(struct weston_touch *touch)
 	free(touch);
 }
 
+WL_EXPORT struct weston_tablet_manager *
+weston_tablet_manager_create(void)
+{
+	struct weston_tablet_manager *manager;
+
+	manager = zalloc(sizeof *manager);
+	if (manager == NULL)
+		return NULL;
+
+	wl_list_init(&manager->resource_list);
+	wl_list_init(&manager->tablet_list);
+
+	return manager;
+}
+
+WL_EXPORT void
+weston_tablet_manager_destroy(struct weston_tablet_manager *manager)
+{
+	struct weston_tablet *tablet, *tmp;
+
+	wl_list_for_each_safe(tablet, tmp, &manager->tablet_list, link) {
+		weston_tablet_destroy(tablet);
+	}
+
+	free(manager);
+}
+
 static void
 seat_send_updated_caps(struct weston_seat *seat)
 {
@@ -407,6 +434,8 @@ seat_send_updated_caps(struct weston_seat *seat)
 		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 	if (seat->touch)
 		caps |= WL_SEAT_CAPABILITY_TOUCH;
+	if (seat->tablet_manager)
+		caps |= WL_SEAT_CAPABILITY_TABLETS;
 
 	wl_resource_for_each(resource, &seat->base_resource_list) {
 		wl_seat_send_capabilities(resource, caps);
@@ -1292,10 +1321,37 @@ seat_get_touch(struct wl_client *client, struct wl_resource *resource,
 				       seat, unbind_resource);
 }
 
+static void
+seat_get_tablets(struct wl_client *client, struct wl_resource *resource,
+		 uint32_t id)
+{
+	struct weston_seat *seat = wl_resource_get_user_data(resource);
+	struct wl_resource *cr;
+
+	if (!seat->tablet_manager)
+		return;
+
+        cr = wl_resource_create(client, &wl_tablet_manager_interface,
+				wl_resource_get_version(resource), id);
+	if (cr == NULL) {
+		wl_client_post_no_memory(client);
+		return;
+	}
+
+	wl_list_insert(&seat->tablet_manager->resource_list, wl_resource_get_link(cr));
+#if 0
+	wl_resource_set_implementation(cr, &tablet_manager_interface, seat->tablet_manager,
+				       unbind_resource);
+#endif
+
+	/* FIXME: send device_added */
+}
+
 static const struct wl_seat_interface seat_interface = {
 	seat_get_pointer,
 	seat_get_keyboard,
 	seat_get_touch,
+	seat_get_tablets,
 };
 
 static void
@@ -1317,6 +1373,8 @@ bind_seat(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 		caps |= WL_SEAT_CAPABILITY_KEYBOARD;
 	if (seat->touch)
 		caps |= WL_SEAT_CAPABILITY_TOUCH;
+	if (version >= 4 && seat->tablet_manager)
+		caps |= WL_SEAT_CAPABILITY_TABLETS;
 
 	wl_seat_send_capabilities(resource, caps);
 	if (version >= 2)
@@ -1580,6 +1638,24 @@ weston_seat_init_touch(struct weston_seat *seat)
 }
 
 WL_EXPORT void
+weston_seat_init_tablet_manager(struct weston_seat *seat)
+{
+	struct weston_tablet_manager *manager;
+
+	if (seat->tablet_manager)
+		return;
+
+	manager = weston_tablet_manager_create();
+	if (manager == NULL)
+		return;
+
+	seat->tablet_manager = manager;
+	manager->seat = seat;
+
+	seat_send_updated_caps(seat);
+}
+
+WL_EXPORT void
 weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 		 const char *seat_name)
 {
@@ -1626,6 +1702,8 @@ weston_seat_release(struct weston_seat *seat)
 		weston_keyboard_destroy(seat->keyboard);
 	if (seat->touch)
 		weston_touch_destroy(seat->touch);
+	if (seat->tablet_manager)
+		weston_tablet_manager_destroy(seat->tablet_manager);
 
 	free (seat->seat_name);
 

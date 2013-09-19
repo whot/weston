@@ -448,6 +448,19 @@ struct weston_keyboard {
 	struct wl_resource *input_method_resource;
 };
 
+struct weston_tablet {
+	struct weston_seat *seat;
+	struct weston_output *output;
+	struct wl_list link; /* tablet_manager->tablet_list */
+	char *name;
+};
+
+struct weston_tablet_manager {
+	struct weston_seat *seat;
+	struct wl_list resource_list;
+	struct wl_list tablet_list;
+};
+
 struct weston_seat {
 	struct wl_list base_resource_list;
 
@@ -455,6 +468,7 @@ struct weston_seat {
 	struct weston_pointer *pointer;
 	struct weston_keyboard *keyboard;
 	struct weston_touch *touch;
+	struct weston_tablet_manager *tablet_manager;
 
 	struct weston_output *output; /* constraint */
 
