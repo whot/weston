@@ -52,7 +52,7 @@ tablet_destroy(struct evdev_dispatch *dispatch)
 	struct weston_tablet *t = tablet->tablet;
 
 	wl_list_remove(&tablet->tablet->describe_listener.link);
-	weston_tablet_manager_remove_device(t);
+	weston_tablet_destroy(t);
 
 	free(dispatch);
 }

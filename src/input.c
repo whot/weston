@@ -514,19 +514,6 @@ weston_tablet_manager_add_device(struct weston_tablet_manager *manager,
 WL_EXPORT void
 weston_tablet_manager_remove_device(struct weston_tablet *tablet)
 {
-	struct wl_resource *r;
-
-	/* This doesn't seem right, maybe move removed into wl_tablet */
-	wl_resource_for_each(r, &tablet->manager->resource_list) {
-		struct wl_client *client;
-		struct wl_resource *device;
-
-		client = wl_resource_get_client(r);
-		device = wl_resource_find_for_client(&tablet->resource_list, client);
-		if (device)
-			wl_tablet_manager_send_device_removed(r, device);
-	}
-
 	wl_list_remove(&tablet->link);
 
 	if (wl_list_empty(&tablet->manager->tablet_list)) {
@@ -553,6 +540,12 @@ weston_tablet_create(void)
 WL_EXPORT void
 weston_tablet_destroy(struct weston_tablet *tablet)
 {
+	struct wl_resource *r;
+	wl_resource_for_each(r, &tablet->resource_list) {
+		wl_tablet_send_removed(r);
+	}
+
+	weston_tablet_manager_remove_device(tablet);
 	wl_list_remove(&tablet->link);
 	free(tablet->name);
 	free(tablet);
