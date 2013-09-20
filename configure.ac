@@ -443,6 +443,14 @@ if test x$wayland_scanner = x; then
 	AC_MSG_ERROR([wayland-scanner is needed to compile weston])
 fi
 
+PKG_CHECK_MODULES(WAYLAND_SCANNER, wayland-scanner)
+AC_PATH_PROG(XMLLINT, xmllint)
+AM_CONDITIONAL([HAVE_XMLLINT], [test "x$XMLLINT" != "x"])
+dtddir=$($PKG_CONFIG --variable=pkgdatadir wayland-scanner)
+AC_ARG_WITH([dtddir], [], [dtddir="$withval"])
+AC_SUBST([dtddir])
+
+
 AC_CONFIG_FILES([Makefile
 		 shared/Makefile
 		 src/Makefile

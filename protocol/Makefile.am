@@ -9,3 +9,11 @@ EXTRA_DIST =					\
 	subsurface.xml				\
 	text-cursor-position.xml		\
 	wayland-test.xml
+
+if HAVE_XMLLINT
+validate: $(EXTRA_DIST)
+	$(AM_V_GEN)$(XMLLINT) --noout --dtdvalid $(dtddir)/wayland.dtd $^
+
+all-local: validate
+
+endif
