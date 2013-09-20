@@ -3399,27 +3399,8 @@ static void tablet_free(struct tablet *tablet)
 	free(tablet);
 }
 
-static void
-tablet_removed(void *data,
-	       struct wl_tablet_manager *wl_tablet_manager,
-	       struct wl_tablet *id)
-{
-	struct input *input = data;
-	struct tablet *tablet;
-
-	/* FIXME: yeah, really needs to go into wl_tablet */
-	wl_list_for_each(tablet, &input->tablets, link) {
-		if (tablet->id == id) {
-			tablet_free(tablet);
-			break;
-		}
-	}
-}
-
-
 static const struct wl_tablet_manager_listener tablet_manager_listener = {
 	tablet_added,
-	tablet_removed,
 };
 
 static void
