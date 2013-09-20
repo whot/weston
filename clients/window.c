@@ -294,6 +294,7 @@ struct touch_point {
 };
 
 struct tablet {
+	struct input *input;
 	struct wl_tablet *id;
 	struct wl_list link;
 	char *name;
@@ -3368,6 +3369,123 @@ static const struct wl_touch_listener touch_listener = {
 	touch_handle_cancel,
 };
 
+static void tablet_free(struct tablet *tablet)
+{
+	wl_list_remove(&tablet->link);
+	free(tablet->name);
+	free(tablet);
+}
+
+static void
+tablet_removed(void *data, struct wl_tablet *tablet)
+{
+	struct tablet *t = data;
+
+	printf("---- tablet removed %s\n", t->name);
+
+	tablet_free(t);
+}
+static void
+tablet_axis_capability(void *data,
+		       struct wl_tablet *wl_tablet,
+		       uint32_t type,
+		       uint32_t axis,
+		       int32_t min,
+		       int32_t max,
+		       uint32_t resolution,
+		       uint32_t fuzz,
+		       uint32_t flat)
+{
+	printf(":::: %s\n", __func__);
+}
+
+static void
+tablet_button_capability(void *data,
+			 struct wl_tablet *wl_tablet,
+			 struct wl_array *buttons)
+{
+	printf(":::: %s\n", __func__);
+}
+
+static void
+tablet_proximity_in(void *data,
+		    struct wl_tablet *wl_tablet,
+		    uint32_t time,
+		    wl_fixed_t surface_x,
+		    wl_fixed_t surface_y,
+		    struct wl_array *axes,
+		    uint32_t tool,
+		    uint32_t tool_serial)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static void
+tablet_proximity_out(void *data,
+		     struct wl_tablet *wl_tablet,
+		     uint32_t time)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static void
+tablet_button(void *data,
+	      struct wl_tablet *wl_tablet,
+	      uint32_t serial,
+	      uint32_t time,
+	      uint32_t button,
+	      uint32_t state)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static void
+tablet_motion(void *data,
+	      struct wl_tablet *wl_tablet,
+	      uint32_t time,
+	      wl_fixed_t surface_x,
+	      wl_fixed_t surface_y,
+	      struct wl_array *axes)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static void
+tablet_relative_motion(void *data,
+		       struct wl_tablet *wl_tablet,
+		       uint32_t time,
+		       wl_fixed_t surface_x,
+		       wl_fixed_t surface_y,
+		       struct wl_array *axes)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static void
+tablet_binding(void *data,
+	       struct wl_tablet *wl_tablet,
+	       uint32_t status)
+{
+	struct tablet *t = data;
+	printf(":::: %s %s\n", __func__, t->name);
+}
+
+static const struct wl_tablet_listener tablet_listener = {
+	tablet_removed,
+	tablet_axis_capability,
+	tablet_button_capability,
+	tablet_proximity_in,
+	tablet_proximity_out,
+	tablet_button,
+	tablet_motion,
+	tablet_relative_motion,
+	tablet_binding
+};
 
 static void
 tablet_added(void *data,
@@ -3385,18 +3503,14 @@ tablet_added(void *data,
 
 	t = zalloc(sizeof *t);
 	t->name = strdup(name);
+	t->input = input;
 
 	printf("---- tablet %s\n", name);
 
 	wl_list_insert(&input->tablets, &t->link);
 	wl_tablet_describe(id);
-}
 
-static void tablet_free(struct tablet *tablet)
-{
-	wl_list_remove(&tablet->link);
-	free(tablet->name);
-	free(tablet);
+	wl_tablet_add_listener(id, &tablet_listener, t);
 }
 
 static const struct wl_tablet_manager_listener tablet_manager_listener = {
