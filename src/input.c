@@ -582,13 +582,13 @@ notify_tablet_capability_button(struct wl_resource *resource,
 }
 
 WL_EXPORT void
-notify_tablet_motion(struct weston_tablet tablet, uint32_t time,
+notify_tablet_motion(struct weston_tablet *tablet, uint32_t time,
 		     wl_fixed_t x, wl_fixed_t y, struct wl_array axes)
 {
 }
 
 WL_EXPORT void
-notify_tablet_button(struct weston_tablet tablet, uint32_t time, uint32_t button,
+notify_tablet_button(struct weston_tablet *tablet, uint32_t time, uint32_t button,
 		     enum wl_tablet_button_state state)
 {
 }
