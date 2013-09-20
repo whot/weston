@@ -631,6 +631,8 @@ evdev_device_create(struct weston_seat *seat, const char *path, int device_fd)
 	devname[sizeof(devname) - 1] = '\0';
 	device->devname = strdup(devname);
 
+	ioctl(device->fd, EVIOCGID, &device->ids);
+
 	if (!evdev_handle_device(device)) {
 		evdev_device_destroy(device);
 		return EVDEV_UNHANDLED_DEVICE;
