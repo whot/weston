@@ -3494,8 +3494,6 @@ tablet_added(void *data,
 	     const char *name,
 	     uint32_t vid,
 	     uint32_t pid,
-	     const char *phys,
-	     const char *uniq,
 	     uint32_t type)
 {
 	struct input *input = data;

@@ -492,7 +492,7 @@ weston_tablet_manager_notify(struct wl_resource *resource,
 				       tablet, NULL);
 
 	wl_tablet_manager_send_device_added(resource, cr,
-					    "name", 1, 2, "", "",
+					    "name", 1, 2,
 					    WL_TABLET_TOOL_TYPE_PEN);
 	wl_list_insert(&tablet->resource_list, wl_resource_get_link(cr));
 }
