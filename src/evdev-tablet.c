@@ -91,8 +91,9 @@ tablet_init(struct tablet_dispatch *tablet,
 	tablet->base.interface = &tablet_interface;
 	tablet->device = device;
 
-
-	t = weston_tablet_create();
+	t = weston_tablet_create(device->devname,
+				 device->ids.vendor,
+				 device->ids.product);
 	if (!tablet)
 		return 1;
 

@@ -397,7 +397,7 @@ void
 weston_tablet_manager_remove_device(struct weston_tablet *tablet);
 
 struct weston_tablet *
-weston_tablet_create(void);
+weston_tablet_create(const char *name, uint32_t vid, uint32_t pid);
 
 void
 weston_tablet_destroy(struct weston_tablet *tablet);
@@ -470,6 +470,8 @@ struct weston_tablet {
 	struct weston_tablet_manager *manager;
 	struct wl_list link; /* tablet_manager->tablet_list */
 	char *name;
+	uint32_t vid;
+	uint32_t pid;
 
 	struct wl_resource *focus_resource;
 	struct wl_list resource_list;

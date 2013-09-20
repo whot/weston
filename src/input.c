@@ -492,7 +492,8 @@ weston_tablet_manager_notify(struct wl_resource *resource,
 				       tablet, NULL);
 
 	wl_tablet_manager_send_device_added(resource, cr,
-					    "name", 1, 2,
+					    tablet->name,
+					    tablet->vid, tablet->pid,
 					    WL_TABLET_TOOL_TYPE_PEN);
 	wl_list_insert(&tablet->resource_list, wl_resource_get_link(cr));
 }
@@ -525,7 +526,7 @@ weston_tablet_manager_remove_device(struct weston_tablet *tablet)
 }
 
 WL_EXPORT struct weston_tablet *
-weston_tablet_create(void)
+weston_tablet_create(const char *name, uint32_t vid, uint32_t pid)
 {
 	struct weston_tablet *tablet;
 
@@ -533,6 +534,10 @@ weston_tablet_create(void)
 	wl_list_init(&tablet->link);
 	wl_list_init(&tablet->resource_list);
 	wl_signal_init(&tablet->describe_signal);
+
+	tablet->name = strdup(name);
+	tablet->vid = vid;
+	tablet->pid = pid;
 
 	return tablet;
 }
