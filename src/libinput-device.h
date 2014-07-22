@@ -37,7 +37,8 @@
 enum evdev_device_seat_capability {
 	EVDEV_SEAT_POINTER = (1 << 0),
 	EVDEV_SEAT_KEYBOARD = (1 << 1),
-	EVDEV_SEAT_TOUCH = (1 << 2)
+	EVDEV_SEAT_TOUCH = (1 << 2),
+	EVDEV_SEAT_TABLET = (1 << 3)
 };
 
 struct evdev_device {
@@ -47,6 +48,7 @@ struct evdev_device {
 	struct wl_list link;
 	struct weston_output *output;
 	struct wl_listener output_destroy_listener;
+	struct weston_tablet *tablet;
 	char *devnode;
 	char *output_name;
 	int fd;
