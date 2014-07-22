@@ -4769,6 +4769,7 @@ weston_compositor_create(struct wl_display *display, void *user_data)
 	wl_list_init(&ec->touch_binding_list);
 	wl_list_init(&ec->axis_binding_list);
 	wl_list_init(&ec->debug_binding_list);
+	wl_list_init(&ec->tablet_manager_resource_list);
 
 	weston_plane_init(&ec->primary_plane, ec, 0, 0);
 	weston_compositor_stack_plane(ec, &ec->primary_plane, NULL);

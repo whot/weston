@@ -38,6 +38,7 @@ extern "C" {
 
 #define WL_HIDE_DEPRECATED
 #include <wayland-server.h>
+#include <tablet-unstable-v1-server-protocol.h>
 
 #include "version.h"
 #include "matrix.h"
@@ -404,6 +405,34 @@ struct weston_touch {
 	uint32_t grab_time;
 };
 
+struct weston_tablet_tool {
+	struct weston_seat *seat;
+	enum zwp_tablet_tool_v1_type type;
+
+	struct wl_list resource_list;
+
+	struct wl_list link;
+
+	uint64_t serial;
+	uint64_t hwid;
+	uint32_t capabilities;
+};
+
+struct weston_tablet {
+	struct weston_seat *seat;
+	struct evdev_device *device;
+
+	struct wl_list resource_list;
+
+	struct wl_list link;
+
+	char *name;
+	uint32_t vid;
+	uint32_t pid;
+	const char *path;
+	struct weston_output *output;
+};
+
 void
 weston_pointer_motion_to_abs(struct weston_pointer *pointer,
 			     struct weston_pointer_motion_event *event,
@@ -476,6 +505,16 @@ weston_touch_start_grab(struct weston_touch *device,
 			struct weston_touch_grab *grab);
 void
 weston_touch_end_grab(struct weston_touch *touch);
+
+struct weston_tablet *
+weston_tablet_create(void);
+void
+weston_tablet_destroy(struct weston_tablet *tablet);
+
+struct weston_tablet_tool *
+weston_tablet_tool_create(void);
+void
+weston_tablet_tool_destroy(struct weston_tablet_tool *tool);
 
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
@@ -563,6 +602,8 @@ struct weston_seat {
 	struct weston_pointer *pointer_state;
 	struct weston_keyboard *keyboard_state;
 	struct weston_touch *touch_state;
+	struct wl_list tablet_list;
+	struct wl_list tablet_tool_list;
 	int pointer_device_count;
 	int keyboard_device_count;
 	int touch_device_count;
@@ -588,6 +629,8 @@ struct weston_seat {
 
 	struct input_method *input_method;
 	char *seat_name;
+
+	struct wl_list tablet_seat_resource_list;
 };
 
 enum {
@@ -787,6 +830,9 @@ struct weston_compositor {
 
 	void *user_data;
 	void (*exit)(struct weston_compositor *c);
+
+	struct wl_global *tablet_manager;
+	struct wl_list tablet_manager_resource_list;
 };
 
 struct weston_buffer {
@@ -1195,6 +1241,47 @@ void
 notify_touch_cancel(struct weston_seat *seat);
 
 void
+notify_tablet_added(struct weston_tablet *tablet);
+
+void
+notify_tablet_tool_added(struct weston_tablet_tool *tool);
+
+void
+notify_tablet_tool_proximity_in(struct weston_tablet_tool *tool,
+				uint32_t time,
+				struct weston_tablet *tablet);
+void
+notify_tablet_tool_proximity_out(struct weston_tablet_tool *tool,
+				 uint32_t time);
+void
+notify_tablet_tool_motion(struct weston_tablet_tool *tool,
+			  uint32_t time,
+			  wl_fixed_t x, wl_fixed_t y);
+void
+notify_tablet_tool_pressure(struct weston_tablet_tool *tool,
+			    uint32_t time, uint32_t pressure);
+void
+notify_tablet_tool_distance(struct weston_tablet_tool *tool,
+			    uint32_t time, uint32_t distance);
+void
+notify_tablet_tool_tilt(struct weston_tablet_tool *tool,
+			uint32_t time, int32_t tilt_x, int32_t tilt_y);
+void
+notify_tablet_tool_button(struct weston_tablet_tool *tool,
+			  uint32_t time,
+			  uint32_t button,
+			  enum zwp_tablet_tool_v1_button_state state);
+void
+notify_tablet_tool_up(struct weston_tablet_tool *tool,
+		      uint32_t time);
+void
+notify_tablet_tool_down(struct weston_tablet_tool *tool,
+			uint32_t time);
+void
+notify_tablet_tool_frame(struct weston_tablet_tool *tool,
+			 uint32_t time);
+
+void
 weston_layer_entry_insert(struct weston_layer_entry *list,
 			  struct weston_layer_entry *entry);
 void
@@ -1512,6 +1599,14 @@ void
 weston_seat_init_touch(struct weston_seat *seat);
 void
 weston_seat_release_touch(struct weston_seat *seat);
+struct weston_tablet *
+weston_seat_add_tablet(struct weston_seat *seat);
+struct weston_tablet_tool *
+weston_seat_add_tablet_tool(struct weston_seat *seat);
+void
+weston_seat_release_tablet_tool(struct weston_tablet_tool *tablet_tool);
+void
+weston_seat_release_tablet(struct weston_tablet *tablet);
 void
 weston_seat_repick(struct weston_seat *seat);
 void
@@ -1524,6 +1619,9 @@ weston_compositor_xkb_init(struct weston_compositor *ec,
 			   struct xkb_rule_names *names);
 void
 weston_compositor_xkb_destroy(struct weston_compositor *ec);
+
+void
+weston_tablet_manager_init(struct weston_compositor *ec);
 
 /* String literal of spaces, the same width as the timestamp. */
 #define STAMP_SPACE "               "

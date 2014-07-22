@@ -178,7 +178,7 @@ if test x$enable_drm_compositor = xyes; then
 fi
 
 
-PKG_CHECK_MODULES(LIBINPUT_BACKEND, [libinput >= 0.8.0])
+PKG_CHECK_MODULES(LIBINPUT_BACKEND, [libinput >= 1.1.901])
 PKG_CHECK_MODULES(COMPOSITOR, [$COMPOSITOR_MODULES])
 
 PKG_CHECK_MODULES(WAYLAND_PROTOCOLS, [wayland-protocols >= 1.0],
