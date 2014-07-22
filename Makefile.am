@@ -469,7 +469,8 @@ demo_clients +=					\
 	weston-simple-damage			\
 	weston-simple-touch			\
 	weston-presentation-shm			\
-	weston-multi-resource
+	weston-multi-resource			\
+	weston-tablet
 
 weston_simple_shm_SOURCES = clients/simple-shm.c
 nodist_weston_simple_shm_SOURCES =		\
@@ -616,6 +617,10 @@ weston_resizor_CFLAGS = $(AM_CFLAGS) $(CLIENT_CFLAGS)
 weston_scaler_SOURCES = clients/scaler.c
 weston_scaler_LDADD = libtoytoolkit.la
 weston_scaler_CFLAGS = $(AM_CFLAGS) $(CLIENT_CFLAGS)
+
+weston_tablet_SOURCES = clients/tablet.c
+weston_tablet_LDADD = libtoytoolkit.la
+weston_tablet_CFLAGS = $(AM_CFLAGS) $(CLIENT_CFLAGS)
 
 if HAVE_CAIRO_GLESV2
 demo_clients += weston-nested weston-nested-client
