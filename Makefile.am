@@ -128,7 +128,9 @@ nodist_weston_SOURCES =					\
 	protocol/scaler-protocol.c			\
 	protocol/scaler-server-protocol.h		\
 	protocol/linux-dmabuf-protocol.c		\
-	protocol/linux-dmabuf-server-protocol.h
+	protocol/linux-dmabuf-server-protocol.h         \
+	protocol/wayland-tablet-protocol.c		\
+	protocol/wayland-tablet-server-protocol.h
 
 BUILT_SOURCES += $(nodist_weston_SOURCES)
 
@@ -559,7 +561,9 @@ nodist_libtoytoolkit_la_SOURCES =			\
 	protocol/xdg-shell-protocol.c			\
 	protocol/xdg-shell-client-protocol.h		\
 	protocol/ivi-application-protocol.c		\
-	protocol/ivi-application-client-protocol.h
+	protocol/ivi-application-client-protocol.h	\
+	protocol/wayland-tablet-protocol.c		\
+	protocol/wayland-tablet-client-protocol.h
 
 BUILT_SOURCES += $(nodist_libtoytoolkit_la_SOURCES)
 
@@ -770,7 +774,10 @@ BUILT_SOURCES +=					\
 	protocol/ivi-hmi-controller-protocol.c		\
 	protocol/ivi-hmi-controller-client-protocol.h	\
 	protocol/ivi-application-protocol.c		\
-	protocol/ivi-application-client-protocol.h
+	protocol/ivi-application-client-protocol.h	\
+	protocol/wayland-tablet-protocol.c		\
+	protocol/wayland-tablet-client-protocol.h
+
 
 westondatadir = $(datadir)/weston
 dist_westondata_DATA =				\
@@ -1353,7 +1360,8 @@ EXTRA_DIST +=					\
 	protocol/scaler.xml			\
 	protocol/ivi-application.xml		\
 	protocol/ivi-hmi-controller.xml		\
-	protocol/linux-dmabuf.xml
+	protocol/linux-dmabuf.xml		\
+	protocol/wayland-tablet.xml
 
 #
 # manual test modules in tests subdirectory
