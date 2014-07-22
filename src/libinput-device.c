@@ -40,6 +40,14 @@
 #include "libinput-device.h"
 #include "shared/helpers.h"
 
+struct tablet_output_listener {
+	struct wl_listener base;
+	struct wl_list tablet_list;
+};
+
+static bool
+tablet_bind_output(struct weston_tablet *tablet, struct weston_output *output);
+
 void
 evdev_led_update(struct evdev_device *device, enum weston_led weston_leds)
 {
@@ -285,6 +293,84 @@ handle_touch_frame(struct libinput_device *libinput_device,
 	notify_touch_frame(seat);
 }
 
+static void
+handle_tablet_proximity(struct libinput_device *libinput_device,
+			struct libinput_event_tablet *proximity_event)
+{
+	struct evdev_device *device;
+	struct weston_tablet *tablet;
+	struct weston_tablet_tool *tool;
+	struct libinput_tool *libinput_tool;
+	enum libinput_tool_type libinput_tool_type;
+	uint32_t serial, type;
+	uint32_t time;
+	bool create = true;
+
+	device = libinput_device_get_user_data(libinput_device);
+	time = libinput_event_tablet_get_time(proximity_event);
+	libinput_tool = libinput_event_tablet_get_tool(proximity_event);
+	serial = libinput_tool_get_serial(libinput_tool);
+	libinput_tool_type = libinput_tool_get_type(libinput_tool);
+
+	tool = libinput_tool_get_user_data(libinput_tool);
+	tablet = device->tablet;
+
+	if (libinput_event_tablet_get_proximity_state(proximity_event) ==
+	    LIBINPUT_TOOL_PROXIMITY_OUT) {
+		notify_tablet_tool_proximity_out(tool, time);
+		return;
+	}
+
+	switch (libinput_tool_type) {
+	case LIBINPUT_TOOL_PEN:
+		type = ZWP_TABLET_TOOL1_TYPE_PEN;
+		break;
+	case LIBINPUT_TOOL_ERASER:
+		type = ZWP_TABLET_TOOL1_TYPE_ERASER;
+		break;
+	default:
+		fprintf(stderr, "Unknown libinput tool type %d\n",
+			libinput_tool_type);
+		return;
+	}
+
+	wl_list_for_each(tool, &device->seat->tablet_tool_list, link) {
+		if (tool->serial == serial && tool->type == type) {
+			create = false;
+			break;
+		}
+	}
+
+	if (create) {
+		tool = weston_seat_add_tablet_tool(device->seat);
+		tool->serial = serial;
+		tool->hwid = libinput_tool_get_tool_id(libinput_tool);
+		tool->type = type;
+		tool->capabilities = 0;
+
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_DISTANCE))
+		    tool->capabilities |= 1 << ZWP_TABLET_TOOL1_CAPABILITY_DISTANCE;
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_PRESSURE))
+		    tool->capabilities |= 1 << ZWP_TABLET_TOOL1_CAPABILITY_PRESSURE;
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_TILT_X) &&
+		    libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_TILT_Y))
+		    tool->capabilities |= 1 << ZWP_TABLET_TOOL1_CAPABILITY_TILT;
+
+		wl_list_insert(&device->seat->tablet_tool_list, &tool->link);
+		notify_tablet_tool_added(tool);
+
+		libinput_tool_set_user_data(libinput_tool, tool);
+	}
+
+	notify_tablet_tool_proximity_in(tool, time, tablet);
+	/* FIXME: we should send axis updates  here */
+	notify_tablet_tool_frame(tool, time);
+}
+
 int
 evdev_device_process_event(struct libinput_event *event)
 {
@@ -329,6 +415,10 @@ evdev_device_process_event(struct libinput_event *event)
 	case LIBINPUT_EVENT_TOUCH_FRAME:
 		handle_touch_frame(libinput_device,
 				   libinput_event_get_touch_event(event));
+		break;
+	case LIBINPUT_EVENT_TABLET_PROXIMITY:
+		handle_tablet_proximity(libinput_device,
+					libinput_event_get_tablet_event(event));
 		break;
 	default:
 		handled = 0;
@@ -482,6 +572,115 @@ configure_device(struct evdev_device *device)
 	evdev_device_set_calibration(device);
 }
 
+static void
+bind_unbound_tablets(struct wl_listener *listener_base, void *data)
+{
+	struct tablet_output_listener *listener =
+		wl_container_of(listener_base, listener, base);
+	struct weston_tablet *tablet, *tmp;
+
+	wl_list_for_each_safe(tablet, tmp, &listener->tablet_list, link) {
+		if (tablet_bind_output(tablet, data)) {
+			wl_list_remove(&tablet->link);
+			wl_list_insert(&tablet->seat->tablet_list,
+				       &tablet->link);
+			tablet->device->seat_caps |= EVDEV_SEAT_TABLET;
+			notify_tablet_added(tablet);
+		}
+	}
+
+	if (wl_list_empty(&listener->tablet_list)) {
+		wl_list_remove(&listener_base->link);
+		free(listener);
+	}
+}
+
+static bool
+tablet_bind_output(struct weston_tablet *tablet, struct weston_output *output)
+{
+	struct wl_list *output_list = &tablet->seat->compositor->output_list;
+	struct weston_compositor *compositor = tablet->seat->compositor;
+	struct tablet_output_listener *listener;
+	struct wl_listener *listener_base;
+
+	/* TODO: Properly bind tablets with built-in displays */
+	switch (tablet->type) {
+		case ZWP_TABLET1_TYPE_EXTERNAL:
+		case ZWP_TABLET1_TYPE_INTERNAL:
+		case ZWP_TABLET1_TYPE_DISPLAY:
+			if (output) {
+				tablet->output = output;
+			} else {
+				if (wl_list_empty(output_list))
+					break;
+
+				/* Find the first available display */
+				wl_list_for_each(output, output_list, link)
+					break;
+				tablet->output = output;
+			}
+		break;
+	}
+
+	if (tablet->output)
+		return true;
+
+	listener_base = wl_signal_get(&compositor->output_created_signal,
+				      bind_unbound_tablets);
+	if (listener_base == NULL) {
+		listener = zalloc(sizeof(*listener));
+
+		wl_list_init(&listener->tablet_list);
+
+		listener_base = &listener->base;
+		listener_base->notify = bind_unbound_tablets;
+
+		wl_signal_add(&compositor->output_created_signal,
+			      listener_base);
+	} else {
+		listener = wl_container_of(listener_base, listener, base);
+	}
+
+	wl_list_insert(&listener->tablet_list, &tablet->link);
+	return false;
+}
+
+static void
+evdev_device_init_tablet(struct evdev_device *device,
+			 struct libinput_device *libinput_device,
+			 struct weston_seat *seat)
+{
+	struct weston_tablet *tablet;
+	struct udev_device *udev_device;
+
+	tablet = weston_seat_add_tablet(seat);
+	tablet->name = strdup(libinput_device_get_name(libinput_device));
+	tablet->vid = libinput_device_get_id_vendor(libinput_device);
+	tablet->pid = libinput_device_get_id_product(libinput_device);
+
+	/* FIXME: we need libwacom to get this information */
+	tablet->type = ZWP_TABLET1_TYPE_EXTERNAL;
+
+	udev_device = libinput_device_get_udev_device(libinput_device);
+	if (udev_device) {
+		tablet->path = udev_device_get_devnode(udev_device);
+		udev_device_unref(udev_device);
+	}
+
+	/* If we can successfully bind the tablet to an output, then
+	 * it's ready to get added to the seat's tablet list, otherwise
+	 * it will get added when an appropriate output is available */
+	if (tablet_bind_output(tablet, NULL)) {
+		wl_list_insert(&seat->tablet_list, &tablet->link);
+		device->seat_caps |= EVDEV_SEAT_TABLET;
+
+		notify_tablet_added(tablet);
+	}
+
+	device->tablet = tablet;
+	tablet->device = device;
+}
+
 struct evdev_device *
 evdev_device_create(struct libinput_device *libinput_device,
 		    struct weston_seat *seat)
@@ -511,6 +710,10 @@ evdev_device_create(struct libinput_device *libinput_device,
 		weston_seat_init_touch(seat);
 		device->seat_caps |= EVDEV_SEAT_TOUCH;
 	}
+	if (libinput_device_has_capability(libinput_device,
+					   LIBINPUT_DEVICE_CAP_TABLET)) {
+		evdev_device_init_tablet(device, libinput_device, seat);
+	}
 
 	libinput_device_set_user_data(libinput_device, device);
 	libinput_device_ref(libinput_device);
@@ -529,6 +732,8 @@ evdev_device_destroy(struct evdev_device *device)
 		weston_seat_release_keyboard(device->seat);
 	if (device->seat_caps & EVDEV_SEAT_TOUCH)
 		weston_seat_release_touch(device->seat);
+	if (device->seat_caps & EVDEV_SEAT_TABLET)
+		weston_seat_release_tablet(device->tablet);
 
 	if (device->output)
 		wl_list_remove(&device->output_destroy_listener.link);
