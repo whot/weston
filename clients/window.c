@@ -70,6 +70,7 @@ typedef void *EGLContext;
 #include "shared/helpers.h"
 #include "xdg-shell-client-protocol.h"
 #include "text-cursor-position-client-protocol.h"
+#include "wayland-tablet-client-protocol.h"
 #include "workspaces-client-protocol.h"
 #include "shared/os-compatibility.h"
 
@@ -141,6 +142,24 @@ struct display {
 
 	int has_rgb565;
 	int data_device_manager_version;
+};
+
+struct tablet {
+	struct wl_tablet *tablet;
+	double sx, sy;
+	struct input *input;
+
+	struct window *focus;
+	struct widget *focus_widget;
+
+	char *name;
+	int32_t vid;
+	int32_t pid;
+	enum wl_tablet_manager_tablet_type type;
+
+	void *user_data;
+
+	struct wl_list link;
 };
 
 struct window_output {
@@ -287,6 +306,7 @@ struct widget {
 	widget_touch_frame_handler_t touch_frame_handler;
 	widget_touch_cancel_handler_t touch_cancel_handler;
 	widget_axis_handler_t axis_handler;
+	widget_tablet_motion_handler_t tablet_motion_handler;
 	void *user_data;
 	int opaque;
 	int tooltip_count;
@@ -312,6 +332,8 @@ struct input {
 	struct wl_keyboard *keyboard;
 	struct wl_touch *touch;
 	struct wl_list touch_point_list;
+	struct wl_tablet_manager *tablet_manager;
+	struct wl_list tablet_list;
 	struct window *pointer_focus;
 	struct window *keyboard_focus;
 	struct window *touch_focus;
@@ -1935,6 +1957,13 @@ widget_set_axis_handler(struct widget *widget,
 	widget->axis_handler = handler;
 }
 
+void
+widget_set_tablet_motion_handler(struct widget *widget,
+				 widget_tablet_motion_handler_t handler)
+{
+	widget->tablet_motion_handler = handler;
+}
+
 static void
 window_schedule_redraw_task(struct window *window);
 
@@ -2645,6 +2674,25 @@ input_ungrab(struct input *input)
 	}
 }
 
+void
+tablet_get_position(struct tablet *tablet, int32_t *x, int32_t *y)
+{
+	*x = tablet->sx;
+	*y = tablet->sy;
+}
+
+void
+tablet_set_user_data(struct tablet *tablet, void *data)
+{
+	tablet->user_data = data;
+}
+
+void *
+tablet_get_user_data(struct tablet *tablet)
+{
+	return tablet->user_data;
+}
+
 static void
 cursor_delay_timer_reset(struct input *input, uint32_t duration)
 {
@@ -3245,6 +3293,136 @@ static const struct wl_touch_listener touch_listener = {
 	touch_handle_motion,
 	touch_handle_frame,
 	touch_handle_cancel,
+};
+
+static void
+tablet_handle_proximity_in(void *data, struct wl_tablet *wl_tablet,
+			   uint32_t serial, uint32_t time,
+			   struct wl_tablet_tool *tool,
+			   struct wl_surface *surface)
+{
+	struct tablet *tablet = data;
+	struct window *window;
+
+	DBG("tablet_handle_proximity_in\n");
+
+	window = wl_surface_get_user_data(surface);
+	if (surface != window->main_surface->surface) {
+		DBG("Ignoring input event from subsurface %p\n", surface);
+		return;
+	}
+	tablet->focus = window;
+}
+
+static void
+tablet_handle_proximity_out(void *data, struct wl_tablet *wl_tablet,
+			    uint32_t time)
+{
+	struct tablet *tablet = data;
+
+	tablet->focus = NULL;
+}
+
+static void
+tablet_handle_motion(void *data, struct wl_tablet *wl_tablet, uint32_t time,
+		     wl_fixed_t w_sx, wl_fixed_t w_sy)
+{
+	struct tablet *tablet = data;
+	double sx = wl_fixed_to_double(w_sx);
+	double sy = wl_fixed_to_double(w_sy);
+	struct window *window = tablet->focus;
+	struct widget *widget;
+
+	DBG("tablet_handle_motion");
+
+	if (!window)
+		return;
+
+	tablet->sx = sx;
+	tablet->sy = sy;
+
+	if (sx > window->main_surface->allocation.width ||
+	    sy > window->main_surface->allocation.height)
+		return;
+
+	widget = window_find_widget(window, sx, sy);
+	if (widget && widget->tablet_motion_handler) {
+		widget->tablet_motion_handler(widget, tablet, sx, sy, time,
+					      widget->user_data);
+	}
+}
+
+static void
+tablet_handle_removed(void *data, struct wl_tablet *wl_tablet)
+{
+	struct tablet *tablet = data;
+
+	wl_list_remove(&tablet->link);
+	free(tablet->name);
+	free(tablet);
+
+	wl_tablet_release(wl_tablet);
+}
+
+static void
+tablet_handle_frame(void *data, struct wl_tablet *wl_tablet)
+{
+
+}
+
+static const struct wl_tablet_listener tablet_listener = {
+	tablet_handle_proximity_in,
+	tablet_handle_proximity_out,
+	tablet_handle_motion,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	tablet_handle_frame,
+	tablet_handle_removed,
+};
+
+static void
+tablet_manager_handle_device_added(void *data,
+				   struct wl_tablet_manager *wl_tablet_manager,
+				   struct wl_tablet *wl_tablet,
+				   const char *name, uint32_t vid, uint32_t pid,
+				   uint32_t type, uint32_t extra_axes)
+{
+	struct input *input = data;
+	struct tablet *tablet = xzalloc(sizeof(*tablet));
+
+	*tablet = (struct tablet) {
+		.name = strdup(name),
+		.vid = vid,
+		.pid = pid,
+		.type = type,
+		.input = input,
+		.tablet = wl_tablet,
+	};
+	wl_list_insert(&input->tablet_list, &tablet->link);
+
+	DBG("tablet_manager_handle_device_added");
+
+	wl_tablet_add_listener(wl_tablet, &tablet_listener, tablet);
+}
+
+static void
+tablet_manager_handle_seat(void *data,
+			   struct wl_tablet_manager *wl_tablet_manager,
+			   struct wl_seat *seat)
+{
+	struct input *input = wl_seat_get_user_data(seat);
+
+	wl_tablet_manager_set_user_data(wl_tablet_manager, input);
+}
+
+static const struct wl_tablet_manager_listener tablet_manager_listener = {
+	tablet_manager_handle_device_added,
+	NULL,
+	tablet_manager_handle_seat,
 };
 
 static void
@@ -5237,6 +5415,7 @@ display_add_input(struct display *d, uint32_t id, int display_seat_version)
 
 	wl_list_init(&input->touch_point_list);
 	wl_list_insert(d->input_list.prev, &input->link);
+	wl_list_init(&input->tablet_list);
 
 	wl_seat_add_listener(input->seat, &seat_listener, input);
 	wl_seat_set_user_data(input->seat, input);
@@ -5267,10 +5446,22 @@ display_add_input(struct display *d, uint32_t id, int display_seat_version)
 }
 
 static void
+input_destroy_tablets(struct input *input)
+{
+	struct tablet *tablet, *tmp;
+
+	wl_list_for_each_safe(tablet, tmp, &input->tablet_list, link) {
+		free(tablet->name);
+		free(tablet);
+	}
+}
+
+static void
 input_destroy(struct input *input)
 {
 	input_remove_keyboard_focus(input);
 	input_remove_pointer_focus(input);
+	input_destroy_tablets(input);
 
 	if (input->drag_offer)
 		data_offer_destroy(input->drag_offer);
@@ -5381,6 +5572,16 @@ registry_handle_global(void *data, struct wl_registry *registry, uint32_t id,
 			wl_registry_bind(registry, id,
 					 &wl_data_device_manager_interface,
 					 d->data_device_manager_version);
+	} else if (strcmp(interface, "wl_tablet_manager") == 0) {
+		struct wl_tablet_manager *tablet_manager =
+			wl_registry_bind(registry, id,
+					 &wl_tablet_manager_interface, 1);
+
+		/* We can't do anything more with this tablet manager until we
+		 * get the seat it's associated with */
+		wl_tablet_manager_add_listener(tablet_manager,
+					       &tablet_manager_listener,
+					       NULL);
 	} else if (strcmp(interface, "xdg_shell") == 0) {
 		d->xdg_shell = wl_registry_bind(registry, id,
 						&xdg_shell_interface, 1);
