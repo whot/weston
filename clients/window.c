@@ -307,6 +307,8 @@ struct widget {
 	widget_touch_cancel_handler_t touch_cancel_handler;
 	widget_axis_handler_t axis_handler;
 	widget_tablet_motion_handler_t tablet_motion_handler;
+	widget_tablet_proximity_in_handler_t tablet_proximity_in_handler;
+	widget_tablet_proximity_out_handler_t tablet_proximity_out_handler;
 	void *user_data;
 	int opaque;
 	int tooltip_count;
@@ -1964,6 +1966,20 @@ widget_set_tablet_motion_handler(struct widget *widget,
 	widget->tablet_motion_handler = handler;
 }
 
+void
+widget_set_tablet_proximity_in_handler(struct widget *widget,
+				       widget_tablet_proximity_in_handler_t handler)
+{
+	widget->tablet_proximity_in_handler = handler;
+}
+
+void
+widget_set_tablet_proximity_out_handler(struct widget *widget,
+					widget_tablet_proximity_out_handler_t handler)
+{
+	widget->tablet_proximity_out_handler = handler;
+}
+
 static void
 window_schedule_redraw_task(struct window *window);
 
@@ -3296,6 +3312,28 @@ static const struct wl_touch_listener touch_listener = {
 };
 
 static void
+tablet_set_focus_widget(struct tablet *tablet, struct window *window,
+			wl_fixed_t sx, wl_fixed_t sy)
+{
+	struct widget *widget;
+
+	widget = window_find_widget(window, sx, sy);
+	if (tablet->focus_widget != widget) {
+		struct widget *old = tablet->focus_widget;
+
+		if (old && old->tablet_proximity_out_handler)
+			old->tablet_proximity_out_handler(
+			    old, tablet, widget_get_user_data(widget));
+
+		if (widget->tablet_proximity_in_handler)
+			widget->tablet_proximity_in_handler(
+			    widget, tablet, widget_get_user_data(widget));
+
+		tablet->focus_widget = widget;
+	}
+}
+
+static void
 tablet_handle_proximity_in(void *data, struct wl_tablet *wl_tablet,
 			   uint32_t serial, uint32_t time,
 			   struct wl_tablet_tool *tool,
@@ -3319,8 +3357,14 @@ tablet_handle_proximity_out(void *data, struct wl_tablet *wl_tablet,
 			    uint32_t time)
 {
 	struct tablet *tablet = data;
+	struct widget *widget = tablet->focus_widget;
+
+	if (widget && widget->tablet_proximity_out_handler)
+		widget->tablet_proximity_out_handler(
+		    widget, tablet, widget_get_user_data(widget));
 
 	tablet->focus = NULL;
+	tablet->focus_widget = NULL;
 }
 
 static void
@@ -3345,7 +3389,9 @@ tablet_handle_motion(void *data, struct wl_tablet *wl_tablet, uint32_t time,
 	    sy > window->main_surface->allocation.height)
 		return;
 
-	widget = window_find_widget(window, sx, sy);
+	tablet_set_focus_widget(tablet, window, sx, sy);
+	widget = tablet->focus_widget;
+
 	if (widget && widget->tablet_motion_handler) {
 		widget->tablet_motion_handler(widget, tablet, sx, sy, time,
 					      widget->user_data);
