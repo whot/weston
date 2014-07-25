@@ -404,6 +404,16 @@ struct weston_touch {
 	uint32_t grab_time;
 };
 
+struct weston_tablet_tool {
+	enum wl_tablet_tool_type type;
+	uint32_t serial;
+
+	struct wl_signal destroy_signal;
+
+	struct wl_list resource_list;
+	struct wl_list link;
+};
+
 struct weston_tablet {
 	struct weston_seat *seat;
 	struct evdev_device *device;
@@ -414,6 +424,8 @@ struct weston_tablet {
 	struct wl_listener focus_view_listener;
 	struct wl_listener focus_resource_listener;
 	uint32_t focus_serial;
+
+	struct weston_tablet_tool *current_tool;
 
 	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
@@ -597,6 +609,7 @@ struct weston_seat {
 	struct weston_keyboard *keyboard_state;
 	struct weston_touch *touch_state;
 	struct wl_list tablet_list;
+	struct wl_list tablet_tool_list;
 	int pointer_device_count;
 	int keyboard_device_count;
 	int touch_device_count;
@@ -1225,6 +1238,9 @@ notify_touch_frame(struct weston_seat *seat);
 
 void
 notify_tablet_added(struct weston_tablet *tablet);
+void
+notify_tablet_proximity_in(struct weston_tablet *tablet, uint32_t time,
+			   struct weston_tablet_tool *tool);
 void
 notify_tablet_proximity_out(struct weston_tablet *tablet, uint32_t time);
 void

@@ -293,20 +293,22 @@ handle_touch_frame(struct libinput_device *libinput_device,
 	notify_touch_frame(seat);
 }
 
+struct tool_destroy_listener {
+	struct wl_listener base;
+	struct libinput_tool *tool;
+};
+
+/* Because a libinput tool has the potential to stay in the memory after the
+ * last tablet disconnects, we need to make sure that we clear the user data on
+ * the tool after one of our tool objects is destroyed */
 static void
-handle_tablet_proximity(struct libinput_device *libinput_device,
-			struct libinput_event_tablet *proximity_event)
+reset_libinput_tool_data(struct wl_listener *listener, void *data)
 {
-	struct evdev_device *device =
-		libinput_device_get_user_data(libinput_device);
-	struct weston_tablet *tablet = device->tablet;
-	uint32_t time;
+	struct tool_destroy_listener *tool_destroy_listener =
+		container_of(listener, struct tool_destroy_listener, base);
 
-	time = libinput_event_tablet_get_time(proximity_event);
-
-	if (libinput_event_tablet_get_proximity_state(proximity_event) ==
-	    LIBINPUT_TOOL_PROXIMITY_OUT)
-		notify_tablet_proximity_out(tablet, time);
+	libinput_tool_set_user_data(tool_destroy_listener->tool, NULL);
+	free(tool_destroy_listener);
 }
 
 static void
@@ -338,6 +340,63 @@ handle_tablet_axis(struct libinput_device *libinput_device,
 	}
 
 	notify_tablet_frame(tablet);
+}
+
+static void
+handle_tablet_proximity(struct libinput_device *libinput_device,
+			struct libinput_event_tablet *proximity_event)
+{
+	struct evdev_device *device =
+		libinput_device_get_user_data(libinput_device);
+	struct weston_tablet *tablet = device->tablet;
+	struct libinput_tool *libinput_tool;
+	struct weston_tablet_tool *tool;
+	uint32_t time;
+
+	time = libinput_event_tablet_get_time(proximity_event);
+
+	if (libinput_event_tablet_get_proximity_state(proximity_event) ==
+	    LIBINPUT_TOOL_PROXIMITY_OUT) {
+		notify_tablet_proximity_out(tablet, time);
+		return;
+	}
+
+	libinput_tool = libinput_event_tablet_get_tool(proximity_event);
+	tool = libinput_tool_get_user_data(libinput_tool);
+	if (!tool) {
+		struct tool_destroy_listener *listener;
+
+		listener = malloc(sizeof *listener);
+		if (!listener) {
+			weston_log("failed to allocate memory for a new tablet "
+				   "tool destroy listener, events with this "
+				   "tool will be dropped\n");
+			return;
+		}
+
+		tool = zalloc(sizeof *tool);
+		if (!tool) {
+			weston_log("failed to allocate memory for a new "
+				   "tablet tool, events from this tool will be "
+				   "dropped\n");
+			free(listener);
+			return;
+		}
+
+		tool->type = libinput_tool_get_type(libinput_tool);
+		tool->serial = libinput_tool_get_serial(libinput_tool);
+		wl_list_init(&tool->resource_list);
+		wl_list_insert(&tablet->seat->tablet_tool_list, &tool->link);
+
+		listener->base.notify = reset_libinput_tool_data;
+		listener->tool = libinput_tool;
+		wl_signal_init(&tool->destroy_signal);
+		wl_signal_add(&tool->destroy_signal, &listener->base);
+
+		libinput_tool_set_user_data(libinput_tool, tool);
+	}
+
+	notify_tablet_proximity_in(tablet, time, tool);
 }
 
 int

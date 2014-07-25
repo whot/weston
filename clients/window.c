@@ -151,6 +151,12 @@ struct tablet {
 
 	struct window *focus;
 	struct widget *focus_widget;
+	uint32_t enter_serial;
+	uint32_t cursor_serial;
+	int current_cursor;
+	struct wl_surface *cursor_surface;
+	uint32_t cursor_anim_start;
+	struct wl_callback *cursor_frame_cb;
 
 	char *name;
 	int32_t vid;
@@ -313,6 +319,7 @@ struct widget {
 	int opaque;
 	int tooltip_count;
 	int default_cursor;
+	int default_tablet_cursor;
 	/* If this is set to false then no cairo surface will be
 	 * created before redrawing the surface. This is useful if the
 	 * redraw handler is going to do completely custom rendering
@@ -1639,6 +1646,7 @@ widget_create(struct window *window, struct surface *surface, void *data)
 	widget->tooltip = NULL;
 	widget->tooltip_count = 0;
 	widget->default_cursor = CURSOR_LEFT_PTR;
+	widget->default_tablet_cursor = CURSOR_LEFT_PTR;
 	widget->use_cairo = 1;
 
 	return widget;
@@ -1694,6 +1702,12 @@ void
 widget_set_default_cursor(struct widget *widget, int cursor)
 {
 	widget->default_cursor = cursor;
+}
+
+void
+widget_set_default_tablet_cursor(struct widget *widget, int cursor)
+{
+	widget->default_tablet_cursor = cursor;
 }
 
 void
@@ -3312,6 +3326,116 @@ static const struct wl_touch_listener touch_listener = {
 };
 
 static void
+tablet_set_cursor_image_index(struct tablet *tablet, int index)
+{
+	struct wl_buffer *buffer;
+	struct wl_cursor *cursor;
+	struct wl_cursor_image *image;
+
+	cursor = tablet->input->display->cursors[tablet->current_cursor];
+
+	if (index >= (int)cursor->image_count) {
+		fprintf(stderr, "cursor index out of range\n");
+		return;
+	}
+
+	image = cursor->images[index];
+	buffer = wl_cursor_image_get_buffer(image);
+	if (!buffer)
+		return;
+
+	wl_surface_attach(tablet->cursor_surface, buffer, 0, 0);
+	wl_surface_damage(tablet->cursor_surface, 0, 0, image->width,
+			  image->height);
+	wl_surface_commit(tablet->cursor_surface);
+	wl_tablet_set_cursor(tablet->tablet, tablet->enter_serial,
+			     tablet->cursor_surface, image->hotspot_x,
+			     image->hotspot_y);
+}
+
+static const struct wl_callback_listener tablet_cursor_surface_listener;
+
+static void
+tablet_surface_frame_callback(void *data, struct wl_callback *callback,
+			      uint32_t time)
+{
+	struct tablet *tablet = data;
+	struct wl_cursor *cursor;
+	int i;
+
+	if (callback) {
+		assert(callback == tablet->cursor_frame_cb);
+		wl_callback_destroy(callback);
+		tablet->cursor_frame_cb = NULL;
+	}
+
+	if (tablet->current_cursor == CURSOR_BLANK) {
+		wl_tablet_set_cursor(tablet->tablet, tablet->enter_serial, NULL,
+				     0, 0);
+		return;
+	}
+
+	if (tablet->current_cursor == CURSOR_UNSET)
+		return;
+	cursor = tablet->input->display->cursors[tablet->current_cursor];
+	if (!cursor)
+		return;
+
+	/* FIXME We don't have the current time on the first call so we set
+	 * the animation start to the time of the first frame callback. */
+	if (time == 0)
+		tablet->cursor_anim_start = 0;
+	else if (tablet->cursor_anim_start == 0)
+		tablet->cursor_anim_start = time;
+
+	if (time == 0 || tablet->cursor_anim_start == 0)
+		i = 0;
+	else
+		i = wl_cursor_frame(cursor, time - tablet->cursor_anim_start);
+
+	if (cursor->image_count > 1) {
+		tablet->cursor_frame_cb =
+			wl_surface_frame(tablet->cursor_surface);
+		wl_callback_add_listener(tablet->cursor_frame_cb,
+					 &tablet_cursor_surface_listener,
+					 tablet);
+	}
+
+	tablet_set_cursor_image_index(tablet, i);
+}
+
+static const struct wl_callback_listener tablet_cursor_surface_listener = {
+	tablet_surface_frame_callback
+};
+
+static void
+tablet_set_cursor_image(struct tablet *tablet, int cursor)
+{
+	int force = 0;
+
+	if (tablet->enter_serial > tablet->cursor_serial)
+		force = 1;
+
+	if (!force && cursor == tablet->current_cursor)
+		return;
+
+	tablet->current_cursor = cursor;
+	tablet->cursor_serial = tablet->enter_serial;
+
+	if (!tablet->cursor_frame_cb)
+		tablet_surface_frame_callback(tablet, NULL, 0);
+	else if (force) {
+		/* The current frame callback may be stuck if, for instance,
+		 * the set cursor request was processed by the server after
+		 * this client lost the focus. In this case the cursor surface
+		 * might not be mapped and the frame callback wouldn't ever
+		 * complete. Send a set_cursor and attach to try to map the
+		 * cursor surface again so that the callback will finish */
+		tablet_set_cursor_image_index(tablet, 0);
+	}
+}
+
+static void
 tablet_set_focus_widget(struct tablet *tablet, struct window *window,
 			wl_fixed_t sx, wl_fixed_t sy)
 {
@@ -3350,6 +3474,7 @@ tablet_handle_proximity_in(void *data, struct wl_tablet *wl_tablet,
 		return;
 	}
 	tablet->focus = window;
+	tablet->enter_serial = serial;
 }
 
 static void
@@ -3376,6 +3501,7 @@ tablet_handle_motion(void *data, struct wl_tablet *wl_tablet, uint32_t time,
 	double sy = wl_fixed_to_double(w_sy);
 	struct window *window = tablet->focus;
 	struct widget *widget;
+	int cursor;
 
 	DBG("tablet_handle_motion");
 
@@ -3392,10 +3518,13 @@ tablet_handle_motion(void *data, struct wl_tablet *wl_tablet, uint32_t time,
 	tablet_set_focus_widget(tablet, window, sx, sy);
 	widget = tablet->focus_widget;
 
-	if (widget && widget->tablet_motion_handler) {
-		widget->tablet_motion_handler(widget, tablet, sx, sy, time,
-					      widget->user_data);
-	}
+	if (widget && widget->tablet_motion_handler)
+		cursor = widget->tablet_motion_handler(
+		    widget, tablet, sx, sy, time, widget->user_data);
+	else
+		cursor = widget->default_tablet_cursor;
+
+	tablet_set_cursor_image(tablet, cursor);
 }
 
 static void
@@ -3449,6 +3578,9 @@ tablet_manager_handle_device_added(void *data,
 		.tablet = wl_tablet,
 	};
 	wl_list_insert(&input->tablet_list, &tablet->link);
+
+	tablet->cursor_surface =
+		wl_compositor_create_surface(input->display->compositor);
 
 	DBG("tablet_manager_handle_device_added");
 
