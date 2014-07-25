@@ -415,7 +415,11 @@ struct weston_tablet {
 	struct wl_listener focus_resource_listener;
 	uint32_t focus_serial;
 
+	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
+
+	struct weston_view *sprite;
+	struct wl_listener sprite_destroy_listener;
 
 	struct weston_tablet_grab *grab;
 	struct weston_tablet_grab default_grab;
@@ -499,6 +503,12 @@ weston_tablet_start_grab(struct weston_tablet *device,
 			 struct weston_tablet_grab *grab);
 void
 weston_tablet_end_grab(struct weston_tablet *tablet);
+void
+weston_tablet_clamp(struct weston_tablet *tablet, wl_fixed_t *fx,
+		    wl_fixed_t *fy);
+void
+weston_tablet_cursor_move(struct weston_tablet *tablet, wl_fixed_t x,
+			  wl_fixed_t y);
 
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
