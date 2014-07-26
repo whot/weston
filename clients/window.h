@@ -39,6 +39,7 @@ struct display;
 struct input;
 struct output;
 struct tablet;
+struct tablet_tool;
 
 struct task {
 	void (*run)(struct task *task, uint32_t events);
@@ -275,6 +276,7 @@ typedef int (*widget_tablet_motion_handler_t)(struct widget *widget,
 					      void *data);
 typedef void (*widget_tablet_proximity_in_handler_t)(struct widget *widget,
 						     struct tablet *tablet,
+						     struct tablet_tool *tool,
 						     void *data);
 typedef void (*widget_tablet_proximity_out_handler_t)(struct widget *widget,
 						      struct tablet *tablet,
@@ -644,6 +646,24 @@ output_get_make(struct output *output);
 
 const char *
 output_get_model(struct output *output);
+
+enum wl_tablet_tool_type
+tablet_tool_get_type(struct tablet_tool *tool);
+
+uint32_t
+tablet_tool_get_serial(struct tablet_tool *tool);
+
+void *
+tablet_tool_get_user_data(struct tablet_tool *tool);
+
+void
+tablet_tool_set_user_data(struct tablet_tool *tool, void *data);
+
+void
+tablet_tool_ref(struct tablet_tool *tool);
+
+void
+tablet_tool_unref(struct tablet_tool *tool);
 
 void
 tablet_get_position(struct tablet *tablet, int32_t *x, int32_t *y);

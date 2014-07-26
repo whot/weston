@@ -144,6 +144,18 @@ struct display {
 	int data_device_manager_version;
 };
 
+struct tablet_tool {
+	struct wl_tablet_tool *wl_tablet_tool;
+
+	enum wl_tablet_tool_type type;
+	uint32_t serial;
+
+	void *user_data;
+
+	int refcount;
+	struct wl_list link;
+};
+
 struct tablet {
 	struct wl_tablet *tablet;
 	double sx, sy;
@@ -157,6 +169,8 @@ struct tablet {
 	struct wl_surface *cursor_surface;
 	uint32_t cursor_anim_start;
 	struct wl_callback *cursor_frame_cb;
+
+	struct tablet_tool *current_tool;
 
 	char *name;
 	int32_t vid;
@@ -343,6 +357,7 @@ struct input {
 	struct wl_list touch_point_list;
 	struct wl_tablet_manager *tablet_manager;
 	struct wl_list tablet_list;
+	struct wl_list tablet_tool_list;
 	struct window *pointer_focus;
 	struct window *keyboard_focus;
 	struct window *touch_focus;
@@ -2711,6 +2726,47 @@ tablet_get_position(struct tablet *tablet, int32_t *x, int32_t *y)
 	*y = tablet->sy;
 }
 
+enum wl_tablet_tool_type
+tablet_tool_get_type(struct tablet_tool *tool)
+{
+	return tool->type;
+}
+
+uint32_t
+tablet_tool_get_serial(struct tablet_tool *tool)
+{
+	return tool->serial;
+}
+
+void
+tablet_tool_set_user_data(struct tablet_tool *tool, void *data)
+{
+	tool->user_data = data;
+}
+
+void *
+tablet_tool_get_user_data(struct tablet_tool *tool)
+{
+	return tool->user_data;
+}
+
+void
+tablet_tool_ref(struct tablet_tool *tool)
+{
+	tool->refcount++;
+}
+
+void
+tablet_tool_unref(struct tablet_tool *tool)
+{
+	tool->refcount--;
+	if (tool->refcount == 0) {
+		wl_list_remove(&tool->link);
+		wl_tablet_tool_release(tool->wl_tablet_tool);
+		free(tool);
+	}
+}
+
 void
 tablet_set_user_data(struct tablet *tablet, void *data)
 {
@@ -3451,7 +3507,8 @@ tablet_set_focus_widget(struct tablet *tablet, struct window *window,
 
 		if (widget->tablet_proximity_in_handler)
 			widget->tablet_proximity_in_handler(
-			    widget, tablet, widget_get_user_data(widget));
+			    widget, tablet, tablet->current_tool,
+			    widget_get_user_data(widget));
 
 		tablet->focus_widget = widget;
 	}
@@ -3464,6 +3521,7 @@ tablet_handle_proximity_in(void *data, struct wl_tablet *wl_tablet,
 			   struct wl_surface *surface)
 {
 	struct tablet *tablet = data;
+	struct tablet_tool *tablet_tool = wl_tablet_tool_get_user_data(tool);
 	struct window *window;
 
 	DBG("tablet_handle_proximity_in\n");
@@ -3474,6 +3532,7 @@ tablet_handle_proximity_in(void *data, struct wl_tablet *wl_tablet,
 		return;
 	}
 	tablet->focus = window;
+	tablet->current_tool = tablet_tool;
 	tablet->enter_serial = serial;
 }
 
@@ -3531,10 +3590,15 @@ static void
 tablet_handle_removed(void *data, struct wl_tablet *wl_tablet)
 {
 	struct tablet *tablet = data;
+	struct input *input = tablet->input;
+	struct tablet_tool *tool, *tmp;
 
 	wl_list_remove(&tablet->link);
 	free(tablet->name);
 	free(tablet);
+
+	wl_list_for_each_safe(tool, tmp, &input->tablet_tool_list, link)
+		tablet_tool_unref(tool);
 
 	wl_tablet_release(wl_tablet);
 }
@@ -3588,6 +3652,27 @@ tablet_manager_handle_device_added(void *data,
 }
 
 static void
+tablet_manager_handle_tool_added(void *data,
+				 struct wl_tablet_manager *wl_tablet_manager,
+				 struct wl_tablet_tool *tool,
+				 enum wl_tablet_tool_type tool_type,
+				 uint32_t tool_serial)
+{
+	struct input *input = data;
+	struct tablet_tool *tablet_tool = xzalloc(sizeof(*tablet_tool));
+
+	*tablet_tool = (struct tablet_tool) {
+		.type = tool_type,
+		.serial = tool_serial,
+		.refcount = 1,
+		.wl_tablet_tool = tool,
+	};
+	wl_list_insert(&input->tablet_tool_list, &tablet_tool->link);
+
+	wl_tablet_tool_set_user_data(tool, tablet_tool);
+}
+
+static void
 tablet_manager_handle_seat(void *data,
 			   struct wl_tablet_manager *wl_tablet_manager,
 			   struct wl_seat *seat)
@@ -3599,7 +3684,7 @@ tablet_manager_handle_seat(void *data,
 
 static const struct wl_tablet_manager_listener tablet_manager_listener = {
 	tablet_manager_handle_device_added,
-	NULL,
+	tablet_manager_handle_tool_added,
 	tablet_manager_handle_seat,
 };
 
@@ -5594,6 +5679,7 @@ display_add_input(struct display *d, uint32_t id, int display_seat_version)
 	wl_list_init(&input->touch_point_list);
 	wl_list_insert(d->input_list.prev, &input->link);
 	wl_list_init(&input->tablet_list);
+	wl_list_init(&input->tablet_tool_list);
 
 	wl_seat_add_listener(input->seat, &seat_listener, input);
 	wl_seat_set_user_data(input->seat, input);
