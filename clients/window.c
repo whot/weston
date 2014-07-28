@@ -329,6 +329,7 @@ struct widget {
 	widget_tablet_motion_handler_t tablet_motion_handler;
 	widget_tablet_proximity_in_handler_t tablet_proximity_in_handler;
 	widget_tablet_proximity_out_handler_t tablet_proximity_out_handler;
+	widget_tablet_button_handler_t tablet_button_handler;
 	void *user_data;
 	int opaque;
 	int tooltip_count;
@@ -2009,6 +2010,13 @@ widget_set_tablet_proximity_out_handler(struct widget *widget,
 	widget->tablet_proximity_out_handler = handler;
 }
 
+void
+widget_set_tablet_button_handler(struct widget *widget,
+				 widget_tablet_button_handler_t handler)
+{
+	widget->tablet_button_handler = handler;
+}
+
 static void
 window_schedule_redraw_task(struct window *window);
 
@@ -3624,6 +3632,20 @@ tablet_handle_frame(void *data, struct wl_tablet *wl_tablet)
 
 }
 
+static void
+tablet_handle_button(void *data, struct wl_tablet *wl_tablet, uint32_t serial,
+		     uint32_t time, uint32_t button, uint32_t state)
+{
+	struct tablet *tablet = data;
+	struct widget *focus = tablet->focus_widget;
+
+	tablet->input->display->serial = serial;
+
+	if (focus && focus->tablet_button_handler)
+		focus->tablet_button_handler(focus, tablet, button, state, time,
+					     focus->user_data);
+}
+
 static const struct wl_tablet_listener tablet_listener = {
 	tablet_handle_proximity_in,
 	tablet_handle_proximity_out,
@@ -3633,7 +3655,7 @@ static const struct wl_tablet_listener tablet_listener = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
+	tablet_handle_button,
 	tablet_handle_frame,
 	tablet_handle_removed,
 };
