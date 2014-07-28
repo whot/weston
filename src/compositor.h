@@ -424,11 +424,14 @@ struct weston_tablet {
 	struct wl_listener focus_view_listener;
 	struct wl_listener focus_resource_listener;
 	uint32_t focus_serial;
+	uint32_t grab_serial;
 
 	struct weston_tablet_tool *current_tool;
 
 	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
+
+	int button_count;
 
 	struct weston_view *sprite;
 	struct wl_listener sprite_destroy_listener;
@@ -1246,6 +1249,9 @@ notify_tablet_proximity_out(struct weston_tablet *tablet, uint32_t time);
 void
 notify_tablet_motion(struct weston_tablet *tablet, uint32_t time,
 		     wl_fixed_t x, wl_fixed_t y);
+void
+notify_tablet_button(struct weston_tablet *tablet, uint32_t time,
+		     uint32_t button, enum wl_tablet_button_state state);
 void
 notify_tablet_frame(struct weston_tablet *tablet);
 

@@ -492,6 +492,22 @@ default_grab_tablet_motion(struct weston_tablet_grab *grab,
 }
 
 static void
+default_grab_tablet_button(struct weston_tablet_grab *grab,
+			   uint32_t time, uint32_t button,
+			   enum wl_tablet_button_state state)
+{
+	struct weston_tablet *tablet = grab->tablet;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tablet->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			wl_tablet_send_button(resource, tablet->grab_serial,
+					      time, button, state);
+	}
+}
+
+static void
 default_grab_tablet_frame(struct weston_tablet_grab *grab)
 {
 	struct wl_resource *resource;
@@ -518,7 +534,7 @@ static struct weston_tablet_grab_interface default_tablet_grab_interface = {
 	NULL,
 	NULL,
 	NULL,
-	NULL,
+	default_grab_tablet_button,
 	default_grab_tablet_frame,
 	default_grab_tablet_cancel,
 };
@@ -1964,6 +1980,27 @@ notify_tablet_frame(struct weston_tablet *tablet)
 	struct weston_tablet_grab *grab = tablet->grab;
 
 	grab->interface->frame(grab);
+}
+
+WL_EXPORT void
+notify_tablet_button(struct weston_tablet *tablet, uint32_t time,
+		     uint32_t button, enum wl_tablet_button_state state)
+{
+	struct weston_tablet_grab *grab = tablet->grab;
+	struct weston_compositor *compositor = tablet->seat->compositor;
+
+	if (state == WL_TABLET_BUTTON_STATE_PRESSED) {
+		tablet->button_count++;
+		if (tablet->button_count == 1)
+			weston_compositor_idle_inhibit(compositor);
+	} else {
+		tablet->button_count--;
+		if (tablet->button_count == 0)
+			weston_compositor_idle_release(compositor);
+	}
+
+	tablet->grab_serial = wl_display_next_serial(compositor->wl_display);
+	grab->interface->button(grab, time, button, state);
 }
 
 static void

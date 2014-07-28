@@ -399,6 +399,25 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 	notify_tablet_proximity_in(tablet, time, tool);
 }
 
+static void
+handle_tablet_button(struct libinput_device *libinput_device,
+		     struct libinput_event_tablet *button_event)
+{
+	struct evdev_device *device =
+		libinput_device_get_user_data(libinput_device);
+	struct weston_tablet *tablet = device->tablet;
+	uint32_t button, time;
+	enum wl_tablet_button_state state;
+
+	time = libinput_event_tablet_get_time(button_event);
+	button = libinput_event_tablet_get_button(button_event);
+	state = (enum wl_tablet_button_state)
+		libinput_event_tablet_get_button_state(button_event);
+
+	if (button != BTN_TOUCH)
+		notify_tablet_button(tablet, time, button, state);
+}
+
 int
 evdev_device_process_event(struct libinput_event *event)
 {
@@ -451,6 +470,10 @@ evdev_device_process_event(struct libinput_event *event)
 	case LIBINPUT_EVENT_TABLET_PROXIMITY:
 		handle_tablet_proximity(libinput_device,
 					libinput_event_get_tablet_event(event));
+		break;
+	case LIBINPUT_EVENT_TABLET_BUTTON:
+		handle_tablet_button(libinput_device,
+				     libinput_event_get_tablet_event(event));
 		break;
 	default:
 		handled = 0;
