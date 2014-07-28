@@ -2580,6 +2580,24 @@ frame_touch_up_handler(struct widget *widget,
 	frame_handle_status(frame, input, time, THEME_LOCATION_CLIENT_AREA);
 }
 
+static int
+frame_tablet_tool_motion_handler(struct widget *widget,
+				 struct tablet_tool *tool,
+				 float x, float y,
+				 void *data)
+{
+	struct window_frame *frame = data;
+	enum theme_location location;
+
+	location = frame_tablet_tool_motion(frame->frame, tool, x, y);
+	if (frame_status(frame->frame) & FRAME_STATUS_REPAINT)
+		widget_schedule_redraw(frame->widget);
+
+	frame_get_pointer_image_for_location(data, location);
+
+	return CURSOR_DEFAULT;
+}
+
 struct widget *
 window_frame_create(struct window *window, void *data)
 {
@@ -2607,6 +2625,8 @@ window_frame_create(struct window *window, void *data)
 	widget_set_button_handler(frame->widget, frame_button_handler);
 	widget_set_touch_down_handler(frame->widget, frame_touch_down_handler);
 	widget_set_touch_up_handler(frame->widget, frame_touch_up_handler);
+	widget_set_tablet_tool_motion_handler(frame->widget,
+					      frame_tablet_tool_motion_handler);
 
 	window->frame = frame;
 
