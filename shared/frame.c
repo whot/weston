@@ -920,6 +920,44 @@ frame_double_touch_up(struct frame *frame, void *data, int32_t id)
 	}
 }
 
+enum theme_location
+frame_tablet_motion(struct frame *frame, void *data, int x, int y)
+{
+	struct frame_pointer *tablet_pointer = frame_pointer_get(frame, data);
+	struct frame_button *button,
+			    *prev_button = tablet_pointer->hover_button;
+	enum theme_location location;
+
+	location = theme_get_location(frame->theme, tablet_pointer->x,
+				      tablet_pointer->y, frame->width,
+				      frame->height,
+				      frame->flags & FRAME_FLAG_MAXIMIZED ?
+				      THEME_FRAME_MAXIMIZED : 0);
+
+	if (!tablet_pointer)
+		return location;
+
+	tablet_pointer->x = x;
+	tablet_pointer->y = y;
+
+	button = frame_find_button(frame, x, y);
+
+	if (prev_button) {
+		if (prev_button == button)
+			/* The button hasn't changed so we're done here */
+			return location;
+		else
+			frame_button_leave(prev_button, tablet_pointer);
+	}
+
+	if (button)
+		frame_button_enter(button);
+
+	tablet_pointer->hover_button = button;
+
+	return location;
+}
+
 void
 frame_repaint(struct frame *frame, cairo_t *cr)
 {
