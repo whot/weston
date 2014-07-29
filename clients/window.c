@@ -2607,6 +2607,31 @@ frame_tablet_motion_handler(struct widget *widget, struct tablet *tablet,
 	return frame_get_pointer_image_for_location(data, location);
 }
 
+static void
+frame_tablet_down_handler(struct widget *widget, struct tablet *tablet,
+			  uint32_t time, void *data)
+{
+	struct window_frame *frame = data;
+	enum theme_location location;
+
+	/* Map a stylus touch to the left mouse button */
+	location = frame_pointer_button(frame->frame, tablet, BTN_LEFT, 1);
+	frame_handle_status(frame, tablet->input, time, location);
+}
+
+static void
+frame_tablet_up_handler(struct widget *widget, struct tablet *tablet,
+			uint32_t time, void *data)
+{
+	struct window_frame *frame = data;
+	enum theme_location location;
+
+	/* Map the stylus leaving contact with the tablet as releasing the left
+	 * mouse button */
+	location = frame_pointer_button(frame->frame, tablet, BTN_LEFT, 0);
+	frame_handle_status(frame, tablet->input, time, location);
+}
+
 struct widget *
 window_frame_create(struct window *window, void *data)
 {
@@ -2635,6 +2660,8 @@ window_frame_create(struct window *window, void *data)
 	widget_set_touch_down_handler(frame->widget, frame_touch_down_handler);
 	widget_set_touch_up_handler(frame->widget, frame_touch_up_handler);
 	widget_set_tablet_motion_handler(frame->widget, frame_tablet_motion_handler);
+	widget_set_tablet_down_handler(frame->widget, frame_tablet_down_handler);
+	widget_set_tablet_up_handler(frame->widget, frame_tablet_up_handler);
 
 	window->frame = frame;
 

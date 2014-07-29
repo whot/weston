@@ -426,6 +426,9 @@ struct weston_tablet {
 	uint32_t focus_serial;
 	uint32_t grab_serial;
 
+	struct wl_signal focus_signal;
+	struct wl_signal removed_signal;
+
 	struct weston_tablet_tool *current_tool;
 
 	int32_t hotspot_x, hotspot_y;
@@ -442,6 +445,7 @@ struct weston_tablet {
 
 	struct weston_tablet_grab *grab;
 	struct weston_tablet_grab default_grab;
+	wl_fixed_t grab_x, grab_y;
 
 	struct wl_list link;
 
@@ -641,6 +645,7 @@ struct weston_seat {
 
 	struct wl_global *tablet_manager;
 	struct wl_list tablet_manager_resource_list;
+	struct wl_signal tablet_added_signal;
 
 	void (*led_update)(struct weston_seat *ws, enum weston_led leds);
 

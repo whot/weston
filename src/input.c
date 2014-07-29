@@ -765,6 +765,8 @@ weston_tablet_create(void)
 	tablet->default_grab.interface = &default_tablet_grab_interface;
 	tablet->default_grab.tablet = tablet;
 	tablet->grab = &tablet->default_grab;
+	wl_signal_init(&tablet->focus_signal);
+	wl_signal_init(&tablet->removed_signal);
 
 	return tablet;
 }
@@ -888,6 +890,8 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 
 	tablet->focus = view;
 	tablet->focus_view_listener.notify = tablet_focus_view_destroyed;
+
+	wl_signal_emit(&tablet->focus_signal, tablet);
 }
 
 WL_EXPORT void
@@ -1171,6 +1175,19 @@ static void
 weston_touch_cancel_grab(struct weston_touch *touch)
 {
 	touch->grab->interface->cancel(touch->grab);
+}
+
+WL_EXPORT void
+weston_tablet_start_grab(struct weston_tablet *tablet, struct weston_tablet_grab *grab)
+{
+	tablet->grab = grab;
+	grab->tablet = tablet;
+}
+
+WL_EXPORT void
+weston_tablet_end_grab(struct weston_tablet *tablet)
+{
+	tablet->grab = &tablet->default_grab;
 }
 
 static void
@@ -2047,6 +2064,9 @@ notify_tablet_down(struct weston_tablet *tablet, uint32_t time)
 	weston_compositor_idle_inhibit(compositor);
 
 	tablet->tool_contact_status = WESTON_TOOL_DOWN;
+	tablet->grab_serial = wl_display_get_serial(compositor->wl_display);
+	tablet->grab_x = tablet->x;
+	tablet->grab_y = tablet->y;
 
 	grab->interface->down(grab, time);
 }
@@ -2937,6 +2957,7 @@ weston_seat_add_tablet(struct weston_seat *seat)
 	if (tablet == NULL)
 		return NULL;
 
+	wl_signal_emit(&seat->tablet_added_signal, tablet);
 	tablet->seat = seat;
 
 	return tablet;
@@ -2947,6 +2968,7 @@ weston_seat_release_tablet(struct weston_tablet *tablet)
 {
 	struct wl_resource *resource;
 
+	wl_signal_emit(&tablet->removed_signal, tablet);
 	weston_tablet_set_focus(tablet, NULL, 0);
 	wl_resource_for_each(resource, &tablet->resource_list)
 		wl_tablet_send_removed(resource);
@@ -2987,6 +3009,7 @@ weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 	wl_list_init(&seat->tablet_list);
 	wl_list_init(&seat->tablet_manager_resource_list);
 	wl_list_init(&seat->tablet_tool_list);
+	wl_signal_init(&seat->tablet_added_signal);
 
 	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 4,
 					seat, bind_seat);
