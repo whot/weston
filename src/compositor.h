@@ -431,6 +431,10 @@ struct weston_tablet {
 	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
 
+	enum {
+		WESTON_TOOL_UP = 0,
+		WESTON_TOOL_DOWN = 1,
+	} tool_contact_status;
 	int button_count;
 
 	struct weston_view *sprite;
@@ -1252,6 +1256,10 @@ notify_tablet_motion(struct weston_tablet *tablet, uint32_t time,
 void
 notify_tablet_button(struct weston_tablet *tablet, uint32_t time,
 		     uint32_t button, enum wl_tablet_button_state state);
+void
+notify_tablet_down(struct weston_tablet *tablet, uint32_t time);
+void
+notify_tablet_up(struct weston_tablet *tablet, uint32_t time);
 void
 notify_tablet_frame(struct weston_tablet *tablet);
 

@@ -414,7 +414,12 @@ handle_tablet_button(struct libinput_device *libinput_device,
 	state = (enum wl_tablet_button_state)
 		libinput_event_tablet_get_button_state(button_event);
 
-	if (button != BTN_TOUCH)
+	if (button == BTN_TOUCH) {
+		if (state == WL_TABLET_BUTTON_STATE_PRESSED)
+			notify_tablet_down(tablet, time);
+		else
+			notify_tablet_up(tablet, time);
+	} else
 		notify_tablet_button(tablet, time, button, state);
 }
 
