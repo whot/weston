@@ -327,6 +327,9 @@ struct widget {
 	widget_touch_cancel_handler_t touch_cancel_handler;
 	widget_axis_handler_t axis_handler;
 	widget_tablet_motion_handler_t tablet_motion_handler;
+	widget_tablet_pressure_handler_t tablet_pressure_handler;
+	widget_tablet_distance_handler_t tablet_distance_handler;
+	widget_tablet_tilt_handler_t tablet_tilt_handler;
 	widget_tablet_proximity_in_handler_t tablet_proximity_in_handler;
 	widget_tablet_proximity_out_handler_t tablet_proximity_out_handler;
 	widget_tablet_button_handler_t tablet_button_handler;
@@ -2033,6 +2036,27 @@ widget_set_tablet_up_handler(struct widget *widget,
 	widget->tablet_up_handler = handler;
 }
 
+void
+widget_set_tablet_pressure_handler(struct widget *widget,
+				   widget_tablet_pressure_handler_t handler)
+{
+	widget->tablet_pressure_handler = handler;
+}
+
+void
+widget_set_tablet_distance_handler(struct widget *widget,
+				   widget_tablet_distance_handler_t handler)
+{
+	widget->tablet_distance_handler = handler;
+}
+
+void
+widget_set_tablet_tilt_handler(struct widget *widget,
+			       widget_tablet_tilt_handler_t handler)
+{
+	widget->tablet_tilt_handler = handler;
+}
+
 static void
 window_schedule_redraw_task(struct window *window);
 
@@ -3653,6 +3677,42 @@ tablet_handle_motion(void *data, struct wl_tablet *wl_tablet, uint32_t time,
 }
 
 static void
+tablet_handle_pressure(void *data, struct wl_tablet *wl_tablet, uint32_t time,
+		       wl_fixed_t pressure)
+{
+	struct tablet *tablet = data;
+	struct widget *widget = tablet->focus_widget;
+
+	if (widget && widget->tablet_pressure_handler)
+		widget->tablet_pressure_handler(widget, tablet, time, pressure,
+						widget->user_data);
+}
+
+static void
+tablet_handle_distance(void *data, struct wl_tablet *wl_tablet, uint32_t time,
+		       wl_fixed_t distance)
+{
+	struct tablet *tablet = data;
+	struct widget *widget = tablet->focus_widget;
+
+	if (widget && widget->tablet_distance_handler)
+		widget->tablet_distance_handler(widget, tablet, time, distance,
+						widget->user_data);
+}
+
+static void
+tablet_handle_tilt(void *data, struct wl_tablet *wl_tablet, uint32_t time,
+		   wl_fixed_t tilt_x, wl_fixed_t tilt_y)
+{
+	struct tablet *tablet = data;
+	struct widget *widget = tablet->focus_widget;
+
+	if (widget && widget->tablet_tilt_handler)
+		widget->tablet_tilt_handler(widget, tablet, time,
+					    tilt_x, tilt_y, widget->user_data);
+}
+
+static void
 tablet_handle_removed(void *data, struct wl_tablet *wl_tablet)
 {
 	struct tablet *tablet = data;
@@ -3718,9 +3778,9 @@ static const struct wl_tablet_listener tablet_listener = {
 	tablet_handle_motion,
 	tablet_handle_down,
 	tablet_handle_up,
-	NULL,
-	NULL,
-	NULL,
+	tablet_handle_pressure,
+	tablet_handle_distance,
+	tablet_handle_tilt,
 	tablet_handle_button,
 	tablet_handle_frame,
 	tablet_handle_removed,
