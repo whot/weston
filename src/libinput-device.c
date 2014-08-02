@@ -339,6 +339,50 @@ handle_tablet_axis(struct libinput_device *libinput_device,
 				     wl_fixed_from_double(y));
 	}
 
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_PRESSURE)) {
+		double pressure;
+		uint32_t time;
+
+		time = libinput_event_tablet_get_time(axis_event);
+		pressure = libinput_event_tablet_get_axis_value(
+		    axis_event, LIBINPUT_TABLET_AXIS_PRESSURE)
+			* WL_TABLET_AXIS_MAX;
+
+		notify_tablet_pressure(tablet, time,
+				       wl_fixed_from_double(pressure));
+	}
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_DISTANCE)) {
+		double distance;
+		uint32_t time;
+
+		time = libinput_event_tablet_get_time(axis_event);
+		distance = libinput_event_tablet_get_axis_value(
+		    axis_event, LIBINPUT_TABLET_AXIS_DISTANCE)
+			* WL_TABLET_AXIS_MAX;
+
+		notify_tablet_distance(tablet, time,
+				       wl_fixed_from_double(distance));
+	}
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_TILT_X) ||
+	    libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_TILT_Y)) {
+		double tilt_x, tilt_y;
+		uint32_t time;
+
+		time = libinput_event_tablet_get_time(axis_event);
+		tilt_x = libinput_event_tablet_get_axis_value(
+		    axis_event, LIBINPUT_TABLET_AXIS_TILT_X) * WL_TABLET_AXIS_MAX;
+		tilt_y = libinput_event_tablet_get_axis_value(
+		    axis_event, LIBINPUT_TABLET_AXIS_TILT_Y) * WL_TABLET_AXIS_MAX;
+
+		notify_tablet_tilt(tablet, time,
+				   wl_fixed_from_double(tilt_x),
+				   wl_fixed_from_double(tilt_y));
+	}
+
 	notify_tablet_frame(tablet);
 }
 
@@ -739,6 +783,20 @@ evdev_device_create(struct libinput_device *libinput_device,
 	if (libinput_device_has_capability(libinput_device,
 					   LIBINPUT_DEVICE_CAP_TABLET)) {
 		struct weston_tablet *tablet = weston_seat_add_tablet(seat);
+
+		if (libinput_tablet_has_axis(libinput_device,
+					     LIBINPUT_TABLET_AXIS_PRESSURE))
+			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_PRESSURE;
+
+		if (libinput_tablet_has_axis(libinput_device,
+					     LIBINPUT_TABLET_AXIS_DISTANCE))
+			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_DISTANCE;
+
+		if (libinput_tablet_has_axis(libinput_device,
+					     LIBINPUT_TABLET_AXIS_TILT_X) &&
+		    libinput_tablet_has_axis(libinput_device,
+					     LIBINPUT_TABLET_AXIS_TILT_Y))
+			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_TILT;
 
 		tablet->name = strdup(libinput_device_get_name(libinput_device));
 		tablet->vid = libinput_device_get_id_vendor(libinput_device);

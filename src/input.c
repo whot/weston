@@ -492,6 +492,48 @@ default_grab_tablet_motion(struct weston_tablet_grab *grab,
 }
 
 static void
+default_grab_tablet_pressure(struct weston_tablet_grab *grab,
+			     uint32_t time, wl_fixed_t pressure)
+{
+	struct weston_tablet *tablet = grab->tablet;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tablet->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			wl_tablet_send_pressure(resource, time, pressure);
+	}
+}
+
+static void
+default_grab_tablet_distance(struct weston_tablet_grab *grab,
+			     uint32_t time, wl_fixed_t distance)
+{
+	struct weston_tablet *tablet = grab->tablet;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tablet->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			wl_tablet_send_distance(resource, time, distance);
+	}
+}
+
+static void
+default_grab_tablet_tilt(struct weston_tablet_grab *grab,
+			 uint32_t time, wl_fixed_t tilt_x, wl_fixed_t tilt_y)
+{
+	struct weston_tablet *tablet = grab->tablet;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tablet->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			wl_tablet_send_tilt(resource, time, tilt_x, tilt_y);
+	}
+}
+
+static void
 default_grab_tablet_down(struct weston_tablet_grab *grab, uint32_t time)
 {
 	struct weston_tablet *tablet = grab->tablet;
@@ -558,9 +600,9 @@ static struct weston_tablet_grab_interface default_tablet_grab_interface = {
 	default_grab_tablet_motion,
 	default_grab_tablet_down,
 	default_grab_tablet_up,
-	NULL,
-	NULL,
-	NULL,
+	default_grab_tablet_pressure,
+	default_grab_tablet_distance,
+	default_grab_tablet_tilt,
 	default_grab_tablet_button,
 	default_grab_tablet_frame,
 	default_grab_tablet_cancel,
@@ -1993,7 +2035,8 @@ notify_tablet_added(struct weston_tablet *tablet)
 		wl_resource_set_user_data(tablet_resource, tablet);
 		wl_tablet_manager_send_device_added(resource, tablet_resource,
 						    tablet->name, tablet->vid,
-						    tablet->pid, 0, 0);
+						    tablet->pid, 0,
+						    tablet->supported_axes);
 	}
 }
 
@@ -2024,6 +2067,33 @@ notify_tablet_motion(struct weston_tablet *tablet, uint32_t time,
 
 	weston_compositor_wake(tablet->seat->compositor);
 	grab->interface->motion(grab, time, x, y);
+}
+
+WL_EXPORT void
+notify_tablet_pressure(struct weston_tablet *tablet, uint32_t time,
+		       wl_fixed_t pressure)
+{
+	struct weston_tablet_grab *grab = tablet->grab;
+
+	grab->interface->pressure(grab, time, pressure);
+}
+
+WL_EXPORT void
+notify_tablet_distance(struct weston_tablet *tablet, uint32_t time,
+		       wl_fixed_t distance)
+{
+	struct weston_tablet_grab *grab = tablet->grab;
+
+	grab->interface->distance(grab, time, distance);
+}
+
+WL_EXPORT void
+notify_tablet_tilt(struct weston_tablet *tablet, uint32_t time,
+		   wl_fixed_t tilt_x, wl_fixed_t tilt_y)
+{
+	struct weston_tablet_grab *grab = tablet->grab;
+
+	grab->interface->tilt(grab, time, tilt_x, tilt_y);
 }
 
 WL_EXPORT void
@@ -2579,7 +2649,8 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 
 		wl_tablet_manager_send_device_added(resource, tablet_resource,
 						    tablet->name, tablet->vid,
-						    tablet->pid, 0, 0);
+						    tablet->pid, 0,
+						    tablet->supported_axes);
 	}
 }
 
