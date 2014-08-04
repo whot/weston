@@ -331,6 +331,55 @@ panel_launcher_touch_up_handler(struct widget *widget, struct input *input,
 }
 
 static void
+panel_launcher_tablet_tool_proximity_in_handler(struct widget *widget,
+						struct tablet_tool *tool,
+						struct tablet *tablet, void *data)
+{
+	struct panel_launcher *launcher;
+
+	launcher = widget_get_user_data(widget);
+	launcher->focused = 1;
+	widget_schedule_redraw(widget);
+}
+
+static void
+panel_launcher_tablet_tool_proximity_out_handler(struct widget *widget,
+						 struct tablet_tool *tool, void *data)
+{
+	struct panel_launcher *launcher;
+
+	launcher = widget_get_user_data(widget);
+	launcher->focused = 0;
+	widget_schedule_redraw(widget);
+}
+
+static void
+panel_launcher_tablet_tool_up_handler(struct widget *widget,
+				      struct tablet_tool *tool,
+				      void *data)
+{
+	struct panel_launcher *launcher;
+
+	launcher = widget_get_user_data(widget);
+	panel_launcher_activate(launcher);
+}
+
+static void
+panel_launcher_tablet_tool_button_handler(struct widget *widget,
+					  struct tablet_tool *tool,
+					  uint32_t button,
+					  enum zwp_tablet_tool_v1_button_state state,
+					  void *data)
+{
+	struct panel_launcher *launcher;
+
+	launcher = widget_get_user_data(widget);
+
+	if (state == ZWP_TABLET_TOOL_V1_BUTTON_STATE_RELEASED)
+		panel_launcher_activate(launcher);
+}
+
+static void
 clock_func(struct task *task, uint32_t events)
 {
 	struct panel_clock *clock =
@@ -638,6 +687,13 @@ panel_add_launcher(struct panel *panel, const char *icon, const char *path)
 				      panel_launcher_touch_down_handler);
 	widget_set_touch_up_handler(launcher->widget,
 				    panel_launcher_touch_up_handler);
+	widget_set_tablet_tool_up_handler(launcher->widget,
+				panel_launcher_tablet_tool_up_handler);
+	widget_set_tablet_tool_proximity_handlers(launcher->widget,
+				panel_launcher_tablet_tool_proximity_in_handler,
+				panel_launcher_tablet_tool_proximity_out_handler);
+	widget_set_tablet_tool_button_handler(launcher->widget,
+				panel_launcher_tablet_tool_button_handler);
 	widget_set_redraw_handler(launcher->widget,
 				  panel_launcher_redraw_handler);
 	widget_set_motion_handler(launcher->widget,
