@@ -135,6 +135,24 @@ weston_compositor_add_touch_binding(struct weston_compositor *compositor,
 }
 
 WL_EXPORT struct weston_binding *
+weston_compositor_add_tablet_tool_binding(struct weston_compositor *compositor,
+					  uint32_t button, uint32_t modifier,
+					  weston_tablet_tool_binding_handler_t handler,
+					  void *data)
+{
+	struct weston_binding *binding;
+
+	binding = weston_compositor_add_binding(compositor, 0, button, 0,
+						modifier, handler, data);
+	if (binding == NULL)
+		return NULL;
+
+	wl_list_insert(compositor->tablet_tool_binding_list.prev, &binding->link);
+
+	return binding;
+}
+
+WL_EXPORT struct weston_binding *
 weston_compositor_add_axis_binding(struct weston_compositor *compositor,
 				   uint32_t axis, uint32_t modifier,
 				   weston_axis_binding_handler_t handler,
@@ -387,7 +405,26 @@ weston_compositor_run_touch_binding(struct weston_compositor *compositor,
 	}
 }
 
-int
+WL_EXPORT void
+weston_compositor_run_tablet_tool_binding(struct weston_compositor *compositor,
+					  struct weston_tablet_tool *tool,
+					  uint32_t button,
+					  enum zwp_tablet_tool_v1_button_state state)
+{
+	struct weston_binding *b;
+
+	if (state != ZWP_TABLET_TOOL_V1_BUTTON_STATE_PRESSED)
+		return;
+
+	wl_list_for_each(b, &compositor->tablet_tool_binding_list, link) {
+		if (b->modifier == tool->seat->modifier_state) {
+			weston_tablet_tool_binding_handler_t handler = b->handler;
+			handler(tool, button, b->data);
+		}
+	}
+}
+
+WL_EXPORT int
 weston_compositor_run_axis_binding(struct weston_compositor *compositor,
 				   struct weston_pointer *pointer,
 				   uint32_t time,

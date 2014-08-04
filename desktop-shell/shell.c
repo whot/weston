@@ -5446,6 +5446,18 @@ touch_to_activate_binding(struct weston_touch *touch, uint32_t time,
 }
 
 static void
+tablet_tool_activate_binding(struct weston_tablet_tool *tool,
+			     uint32_t button, void *data)
+{
+	if (tool->grab != &tool->default_grab)
+		return;
+	if (tool->focus == NULL)
+		return;
+
+	activate_binding(tool->seat, data, tool->focus);
+}
+
+static void
 unfocus_all_seats(struct desktop_shell *shell)
 {
 	struct weston_seat *seat, *next;
@@ -6748,6 +6760,8 @@ shell_add_bindings(struct weston_compositor *ec, struct desktop_shell *shell)
 	weston_compositor_add_touch_binding(ec, 0,
 					    touch_to_activate_binding,
 					    shell);
+	weston_compositor_add_tablet_tool_binding(ec, BTN_TOUCH, 0,
+						  tablet_tool_activate_binding, shell);
 	weston_compositor_add_axis_binding(ec, WL_POINTER_AXIS_VERTICAL_SCROLL,
 				           MODIFIER_SUPER | MODIFIER_ALT,
 				           surface_opacity_binding, NULL);

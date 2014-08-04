@@ -33,6 +33,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <linux/input.h>
 
 #include "shared/helpers.h"
 #include "shared/os-compatibility.h"
@@ -2657,6 +2658,9 @@ notify_tablet_tool_button(struct weston_tablet_tool *tool,
 	}
 
 	tool->grab_serial = wl_display_next_serial(compositor->wl_display);
+
+	weston_compositor_run_tablet_tool_binding(compositor, tool, button, state);
+
 	grab->interface->button(grab, time, button, state);
 }
 
@@ -2674,6 +2678,8 @@ notify_tablet_tool_down(struct weston_tablet_tool *tool,
 	 tool->grab_x = tool->x;
 	 tool->grab_y = tool->y;
 
+	 weston_compositor_run_tablet_tool_binding(compositor, tool, BTN_TOUCH,
+						   ZWP_TABLET_TOOL_V1_BUTTON_STATE_PRESSED);
 	 grab->interface->down(grab, time);
 }
 
