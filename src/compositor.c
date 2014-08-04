@@ -4515,6 +4515,7 @@ weston_compositor_create(struct wl_display *display, void *user_data)
 	wl_list_init(&ec->modifier_binding_list);
 	wl_list_init(&ec->button_binding_list);
 	wl_list_init(&ec->touch_binding_list);
+	wl_list_init(&ec->tablet_binding_list);
 	wl_list_init(&ec->axis_binding_list);
 	wl_list_init(&ec->debug_binding_list);
 
