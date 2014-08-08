@@ -904,7 +904,8 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 				    wl_resource_find_for_client(
 					&seat->tablet_manager_resource_list,
 					surface_client),
-				    tool_resource, tool->type, tool->serial);
+				    tool_resource, tool->type, tool->serial,
+				    tool->axis_caps);
 			}
 
 			wl_tablet_send_proximity_in(resource,
@@ -2036,8 +2037,7 @@ notify_tablet_added(struct weston_tablet *tablet)
 		wl_resource_set_user_data(tablet_resource, tablet);
 		wl_tablet_manager_send_device_added(resource, tablet_resource,
 						    tablet->name, tablet->vid,
-						    tablet->pid, 0,
-						    tablet->supported_axes);
+						    tablet->pid, 0);
 	}
 }
 
@@ -2656,8 +2656,7 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 
 		wl_tablet_manager_send_device_added(resource, tablet_resource,
 						    tablet->name, tablet->vid,
-						    tablet->pid, 0,
-						    tablet->supported_axes);
+						    tablet->pid, 0);
 	}
 }
 

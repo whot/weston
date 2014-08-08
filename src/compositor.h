@@ -420,6 +420,7 @@ struct weston_touch {
 struct weston_tablet_tool {
 	enum wl_tablet_tool_type type;
 	uint32_t serial;
+	enum wl_tablet_tool_axis_flag axis_caps;
 
 	struct wl_signal destroy_signal;
 
@@ -466,7 +467,6 @@ struct weston_tablet {
 	enum wl_tablet_manager_tablet_type type;
 	uint32_t vid;
 	uint32_t pid;
-	enum wl_tablet_axis_flag supported_axes;
 	struct weston_output *output;
 };
 

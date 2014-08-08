@@ -427,6 +427,19 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 			return;
 		}
 
+		/* Copy over the tool capabilities from libinput */
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_PRESSURE))
+			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_PRESSURE;
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_DISTANCE))
+			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_DISTANCE;
+		if (libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_TILT_X) &&
+		    libinput_tool_has_axis(libinput_tool,
+					   LIBINPUT_TABLET_AXIS_TILT_Y))
+			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_TILT;
+
 		tool->type = libinput_tool_get_type(libinput_tool);
 		tool->serial = libinput_tool_get_serial(libinput_tool);
 		wl_list_init(&tool->resource_list);
@@ -783,20 +796,6 @@ evdev_device_create(struct libinput_device *libinput_device,
 	if (libinput_device_has_capability(libinput_device,
 					   LIBINPUT_DEVICE_CAP_TABLET)) {
 		struct weston_tablet *tablet = weston_seat_add_tablet(seat);
-
-		if (libinput_tablet_has_axis(libinput_device,
-					     LIBINPUT_TABLET_AXIS_PRESSURE))
-			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_PRESSURE;
-
-		if (libinput_tablet_has_axis(libinput_device,
-					     LIBINPUT_TABLET_AXIS_DISTANCE))
-			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_DISTANCE;
-
-		if (libinput_tablet_has_axis(libinput_device,
-					     LIBINPUT_TABLET_AXIS_TILT_X) &&
-		    libinput_tablet_has_axis(libinput_device,
-					     LIBINPUT_TABLET_AXIS_TILT_Y))
-			tablet->supported_axes |= WL_TABLET_AXIS_FLAG_TILT;
 
 		tablet->name = strdup(libinput_device_get_name(libinput_device));
 		tablet->vid = libinput_device_get_id_vendor(libinput_device);

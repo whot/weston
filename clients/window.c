@@ -149,6 +149,7 @@ struct tablet_tool {
 
 	enum wl_tablet_tool_type type;
 	uint32_t serial;
+	enum wl_tablet_tool_axis_flag axis_caps;
 
 	void *user_data;
 
@@ -3791,7 +3792,7 @@ tablet_manager_handle_device_added(void *data,
 				   struct wl_tablet_manager *wl_tablet_manager,
 				   struct wl_tablet *wl_tablet,
 				   const char *name, uint32_t vid, uint32_t pid,
-				   uint32_t type, uint32_t extra_axes)
+				   uint32_t type)
 {
 	struct input *input = data;
 	struct tablet *tablet = xzalloc(sizeof(*tablet));
@@ -3819,7 +3820,7 @@ tablet_manager_handle_tool_added(void *data,
 				 struct wl_tablet_manager *wl_tablet_manager,
 				 struct wl_tablet_tool *tool,
 				 enum wl_tablet_tool_type tool_type,
-				 uint32_t tool_serial)
+				 uint32_t tool_serial, uint32_t axis_caps)
 {
 	struct input *input = data;
 	struct tablet_tool *tablet_tool = xzalloc(sizeof(*tablet_tool));
@@ -3827,6 +3828,7 @@ tablet_manager_handle_tool_added(void *data,
 	*tablet_tool = (struct tablet_tool) {
 		.type = tool_type,
 		.serial = tool_serial,
+		.axis_caps = axis_caps,
 		.refcount = 1,
 		.wl_tablet_tool = tool,
 	};
