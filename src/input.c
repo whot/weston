@@ -481,10 +481,14 @@ default_grab_tablet_motion(struct weston_tablet_grab *grab,
 
 	weston_tablet_cursor_move(tablet, x, y);
 
-	current_view = weston_compositor_pick_view(tablet->seat->compositor,
-						   x, y, &sx, &sy);
-	if (current_view != tablet->focus)
-		weston_tablet_set_focus(tablet, current_view, time);
+	if (tablet->button_count <= 0 || !tablet->focus) {
+		current_view =
+			weston_compositor_pick_view(tablet->seat->compositor,
+						    x, y, &sx, &sy);
+		if (current_view != tablet->focus)
+			weston_tablet_set_focus(tablet, current_view, time);
+	} else
+		weston_view_from_global_fixed(tablet->focus, x, y, &sx, &sy);
 
 	if (!wl_list_empty(resource_list)) {
 		wl_resource_for_each(resource, resource_list)
@@ -574,6 +578,19 @@ default_grab_tablet_button(struct weston_tablet_grab *grab,
 		wl_resource_for_each(resource, resource_list)
 			wl_tablet_send_button(resource, tablet->grab_serial,
 					      time, button, state);
+	}
+
+	if (tablet->button_count == 0) {
+		struct weston_view *current_view;
+		wl_fixed_t sx, sy;
+
+		current_view =
+			weston_compositor_pick_view(tablet->seat->compositor,
+						    tablet->x, tablet->y,
+						    &sx, &sy);
+		if (current_view != tablet->focus) {
+			weston_tablet_set_focus(tablet, current_view, time);
+		}
 	}
 }
 
@@ -912,11 +929,6 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 						    tablet->focus_serial,
 						    time, tool_resource,
 						    view->surface->resource);
-
-			if (tablet->tool_contact_status == WESTON_TOOL_DOWN)
-				wl_tablet_send_down(resource,
-						    tablet->focus_serial,
-						    time);
 		}
 	} else if (tablet->sprite)
 		tablet_unmap_sprite(tablet);
@@ -2141,6 +2153,7 @@ notify_tablet_down(struct weston_tablet *tablet, uint32_t time)
 	tablet->grab_serial = wl_display_get_serial(compositor->wl_display);
 	tablet->grab_x = tablet->x;
 	tablet->grab_y = tablet->y;
+	tablet->button_count++;
 
 	weston_compositor_run_tablet_binding(compositor, tablet, BTN_TOUCH,
 					     WL_TABLET_BUTTON_STATE_PRESSED);
@@ -2153,6 +2166,8 @@ notify_tablet_up(struct weston_tablet *tablet, uint32_t time)
 {
 	struct weston_tablet_grab *grab = tablet->grab;
 	struct weston_compositor *compositor = tablet->seat->compositor;
+
+	tablet->button_count--;
 
 	weston_compositor_idle_release(compositor);
 

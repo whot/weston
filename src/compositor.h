@@ -447,6 +447,7 @@ struct weston_tablet {
 
 	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
+	wl_fixed_t sx, sy;
 
 	enum {
 		WESTON_TOOL_UP = 0,
