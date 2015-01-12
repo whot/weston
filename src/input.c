@@ -921,8 +921,8 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 				    wl_resource_find_for_client(
 					&seat->tablet_manager_resource_list,
 					surface_client),
-				    tool_resource, tool->type, tool->serial,
-				    tool->axis_caps);
+				    tool_resource, resource, tool->type,
+				    tool->serial, tool->axis_caps);
 			}
 
 			wl_tablet_send_proximity_in(resource,

@@ -3854,6 +3854,7 @@ static void
 tablet_manager_handle_tool_added(void *data,
 				 struct wl_tablet_manager *wl_tablet_manager,
 				 struct wl_tablet_tool *tool,
+				 struct wl_tablet *wl_tablet,
 				 enum wl_tablet_tool_type tool_type,
 				 uint32_t tool_serial, uint32_t axis_caps)
 {
