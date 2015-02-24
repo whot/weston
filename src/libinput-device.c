@@ -454,6 +454,12 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 	}
 
 	notify_tablet_proximity_in(tablet, time, tool);
+
+	/* Because we have the starting values for all of the axes, we can pass
+	 * the event to the axis event handler, and have it generate the
+	 * appropriate events for each axis
+	 */
+	handle_tablet_axis(libinput_device, proximity_event);
 }
 
 static void
