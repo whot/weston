@@ -267,6 +267,26 @@ typedef void (*widget_axis_handler_t)(struct widget *widget,
 				      wl_fixed_t value,
 				      void *data);
 
+typedef void (*widget_axis_frame_handler_t)(struct widget *widget,
+					    struct input *input,
+					    void *data);
+
+typedef void (*widget_axis_source_handler_t)(struct widget *widget,
+					     struct input *input,
+					     uint32_t source,
+					     void *data);
+
+typedef void (*widget_axis_stop_handler_t)(struct widget *widget,
+					   struct input *input,
+					   uint32_t time,
+					   uint32_t axis,
+					   void *data);
+
+typedef void (*widget_axis_discrete_handler_t)(struct widget *widget,
+					       struct input *input,
+					       int32_t discrete,
+					       void *data);
+
 struct window *
 window_create(struct display *display);
 struct window *
@@ -519,6 +539,14 @@ widget_set_touch_cancel_handler(struct widget *widget,
 void
 widget_set_axis_handler(struct widget *widget,
 			widget_axis_handler_t handler);
+void
+widget_set_axis_handlers(struct widget *widget,
+			widget_axis_handler_t axis_handler,
+			widget_axis_frame_handler_t axis_frame_handler,
+			widget_axis_source_handler_t axis_source_handler,
+			widget_axis_stop_handler_t axis_stop_handler,
+			widget_axis_discrete_handler_t axis_discrete_handler);
+
 void
 widget_schedule_redraw(struct widget *widget);
 void

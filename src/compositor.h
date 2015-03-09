@@ -1075,6 +1075,16 @@ notify_button(struct weston_seat *seat, uint32_t time, int32_t button,
 void
 notify_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
 	    wl_fixed_t value);
+
+void
+notify_axis_discrete(struct weston_seat *seat, int32_t discrete);
+
+void
+notify_axis_source(struct weston_seat *seat, uint32_t source);
+
+void
+notify_axis_frame(struct weston_seat *seat);
+
 void
 notify_key(struct weston_seat *seat, uint32_t time, uint32_t key,
 	   enum wl_keyboard_key_state state,

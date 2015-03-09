@@ -1082,32 +1082,40 @@ x11_backend_deliver_button_event(struct x11_backend *b,
 	case 4:
 		/* Axis are measured in pixels, but the xcb events are discrete
 		 * steps. Therefore move the axis by some pixels every step. */
-		if (state)
+		if (state) {
+			notify_axis_discrete(&b->core_seat, -1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_VERTICAL_SCROLL,
 				    -DEFAULT_AXIS_STEP_DISTANCE);
+		}
 		return;
 	case 5:
-		if (state)
+		if (state) {
+			notify_axis_discrete(&b->core_seat, 1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_VERTICAL_SCROLL,
 				    DEFAULT_AXIS_STEP_DISTANCE);
+		}
 		return;
 	case 6:
-		if (state)
+		if (state) {
+			notify_axis_discrete(&b->core_seat, -1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_HORIZONTAL_SCROLL,
 				    -DEFAULT_AXIS_STEP_DISTANCE);
+		}
 		return;
 	case 7:
-		if (state)
+		if (state) {
+			notify_axis_discrete(&b->core_seat, 1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_HORIZONTAL_SCROLL,
 				    DEFAULT_AXIS_STEP_DISTANCE);
+		}
 		return;
 	default:
 		button = button_event->detail + BTN_SIDE - 8;

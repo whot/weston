@@ -1429,12 +1429,51 @@ input_handle_axis(void *data, struct wl_pointer *pointer,
 	notify_axis(&input->base, time, axis, value);
 }
 
+static void
+input_handle_axis_frame(void *data, struct wl_pointer *pointer)
+{
+	struct wayland_input *input = data;
+
+	notify_axis_frame(&input->base);
+}
+
+static void
+input_handle_axis_source(void *data, struct wl_pointer *pointer,
+			 uint32_t source)
+{
+	struct wayland_input *input = data;
+
+	notify_axis_source(&input->base, source);
+}
+
+static void
+input_handle_axis_stop(void *data, struct wl_pointer *pointer,
+		       uint32_t time, uint32_t axis)
+{
+	struct wayland_input *input = data;
+
+	notify_axis(&input->base, time, axis, 0);
+}
+
+static void
+input_handle_axis_discrete(void *data, struct wl_pointer *pointer,
+			   int32_t discrete)
+{
+	struct wayland_input *input = data;
+
+	notify_axis_discrete(&input->base, discrete);
+}
+
 static const struct wl_pointer_listener pointer_listener = {
 	input_handle_pointer_enter,
 	input_handle_pointer_leave,
 	input_handle_motion,
 	input_handle_button,
 	input_handle_axis,
+	input_handle_axis_frame,
+	input_handle_axis_source,
+	input_handle_axis_stop,
+	input_handle_axis_discrete,
 };
 
 static void

@@ -1089,17 +1089,75 @@ notify_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
 
 	weston_compositor_wake(compositor);
 
-	if (!value)
-		return;
-
 	if (weston_compositor_run_axis_binding(compositor, pointer,
 					       time, axis, value))
 		return;
 
 	resource_list = &pointer->focus_resource_list;
-	wl_resource_for_each(resource, resource_list)
-		wl_pointer_send_axis(resource, time, axis,
-				     value);
+	wl_resource_for_each(resource, resource_list) {
+		if (value)
+			wl_pointer_send_axis(resource, time, axis, value);
+		else if (wl_resource_get_version(resource) >=
+			 WL_POINTER_AXIS_STOP_SINCE_VERSION)
+			wl_pointer_send_axis_stop(resource, time, axis);
+	}
+}
+
+WL_EXPORT void
+notify_axis_discrete(struct weston_seat *seat, int32_t discrete)
+{
+	struct weston_compositor *compositor = seat->compositor;
+	struct weston_pointer *pointer = weston_seat_get_pointer(seat);
+	struct wl_resource *resource;
+	struct wl_list *resource_list;
+
+	weston_compositor_wake(compositor);
+
+	resource_list = &pointer->focus_resource_list;
+	wl_resource_for_each(resource, resource_list) {
+		if (wl_resource_get_version(resource) >=
+		    WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
+			wl_pointer_send_axis_discrete(resource, discrete);
+		}
+	}
+}
+
+WL_EXPORT void
+notify_axis_source(struct weston_seat *seat, uint32_t source)
+{
+	struct weston_compositor *compositor = seat->compositor;
+	struct weston_pointer *pointer = weston_seat_get_pointer(seat);
+	struct wl_resource *resource;
+	struct wl_list *resource_list;
+
+	weston_compositor_wake(compositor);
+
+	resource_list = &pointer->focus_resource_list;
+	wl_resource_for_each(resource, resource_list) {
+		if (wl_resource_get_version(resource) >=
+		    WL_POINTER_AXIS_SOURCE_SINCE_VERSION) {
+			wl_pointer_send_axis_source(resource, source);
+		}
+	}
+}
+
+WL_EXPORT void
+notify_axis_frame(struct weston_seat *seat)
+{
+	struct weston_compositor *compositor = seat->compositor;
+	struct weston_pointer *pointer = weston_seat_get_pointer(seat);
+	struct wl_resource *resource;
+	struct wl_list *resource_list;
+
+	weston_compositor_wake(compositor);
+
+	resource_list = &pointer->focus_resource_list;
+	wl_resource_for_each(resource, resource_list) {
+		if (wl_resource_get_version(resource) >=
+		    WL_POINTER_AXIS_FRAME_SINCE_VERSION) {
+			wl_pointer_send_axis_frame(resource);
+		}
+	}
 }
 
 WL_EXPORT int
@@ -1958,7 +2016,7 @@ bind_seat(struct wl_client *client, void *data, uint32_t version, uint32_t id)
 	enum wl_seat_capability caps = 0;
 
 	resource = wl_resource_create(client,
-				      &wl_seat_interface, MIN(version, 4), id);
+				      &wl_seat_interface, MIN(version, 5), id);
 	wl_list_insert(&seat->base_resource_list, wl_resource_get_link(resource));
 	wl_resource_set_implementation(resource, &seat_interface, data,
 				       unbind_resource);
@@ -2361,7 +2419,7 @@ weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 	wl_signal_init(&seat->destroy_signal);
 	wl_signal_init(&seat->updated_caps_signal);
 
-	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 4,
+	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 5,
 					seat, bind_seat);
 
 	seat->compositor = ec;
