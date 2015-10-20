@@ -28,7 +28,7 @@
 
 #include "compositor.h"
 #include "linux-dmabuf.h"
-#include "linux-dmabuf-server-protocol.h"
+#include "linux-dmabuf-unstable-v1-server-protocol.h"
 
 static void
 linux_dmabuf_buffer_destroy(struct linux_dmabuf_buffer *buffer)
@@ -78,7 +78,7 @@ params_add(struct wl_client *client,
 	buffer = wl_resource_get_user_data(params_resource);
 	if (!buffer) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_ALREADY_USED,
+			ZLINUX_BUFFER_PARAMS1_ERROR_ALREADY_USED,
 			"params was already used to create a wl_buffer");
 		close(name_fd);
 		return;
@@ -89,7 +89,7 @@ params_add(struct wl_client *client,
 
 	if (plane_idx >= MAX_DMABUF_PLANES) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_PLANE_IDX,
+			ZLINUX_BUFFER_PARAMS1_ERROR_PLANE_IDX,
 			"plane index %u is too high", plane_idx);
 		close(name_fd);
 		return;
@@ -97,7 +97,7 @@ params_add(struct wl_client *client,
 
 	if (buffer->dmabuf_fd[plane_idx] != -1) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_PLANE_SET,
+			ZLINUX_BUFFER_PARAMS1_ERROR_PLANE_SET,
 			"a dmabuf has already been added for plane %u",
 			plane_idx);
 		close(name_fd);
@@ -153,7 +153,7 @@ params_create(struct wl_client *client,
 
 	if (!buffer) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_ALREADY_USED,
+			ZLINUX_BUFFER_PARAMS1_ERROR_ALREADY_USED,
 			"params was already used to create a wl_buffer");
 		return;
 	}
@@ -169,7 +169,7 @@ params_create(struct wl_client *client,
 
 	if (!buffer->n_planes) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_INCOMPLETE,
+			ZLINUX_BUFFER_PARAMS1_ERROR_INCOMPLETE,
 			"no dmabuf has been added to the params");
 		goto err_out;
 	}
@@ -178,7 +178,7 @@ params_create(struct wl_client *client,
 	for (i = 0; i < buffer->n_planes; i++) {
 		if (buffer->dmabuf_fd[i] == -1) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_INCOMPLETE,
+				ZLINUX_BUFFER_PARAMS1_ERROR_INCOMPLETE,
 				"no dmabuf has been added for plane %i", i);
 			goto err_out;
 		}
@@ -191,7 +191,7 @@ params_create(struct wl_client *client,
 
 	if (width < 1 || height < 1) {
 		wl_resource_post_error(params_resource,
-			ZLINUX_BUFFER_PARAMS_ERROR_INVALID_DIMENSIONS,
+			ZLINUX_BUFFER_PARAMS1_ERROR_INVALID_DIMENSIONS,
 			"invalid width %d or height %d", width, height);
 		goto err_out;
 	}
@@ -201,7 +201,7 @@ params_create(struct wl_client *client,
 
 		if ((uint64_t) buffer->offset[i] + buffer->stride[i] > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_OUT_OF_BOUNDS,
+				ZLINUX_BUFFER_PARAMS1_ERROR_OUT_OF_BOUNDS,
 				"size overflow for plane %i", i);
 			goto err_out;
 		}
@@ -210,7 +210,7 @@ params_create(struct wl_client *client,
 		   (uint64_t) buffer->offset[i] +
 		   (uint64_t) buffer->stride[i] * height > UINT32_MAX) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_OUT_OF_BOUNDS,
+				ZLINUX_BUFFER_PARAMS1_ERROR_OUT_OF_BOUNDS,
 				"size overflow for plane %i", i);
 			goto err_out;
 		}
@@ -223,7 +223,7 @@ params_create(struct wl_client *client,
 
 		if (buffer->offset[i] >= size) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_OUT_OF_BOUNDS,
+				ZLINUX_BUFFER_PARAMS1_ERROR_OUT_OF_BOUNDS,
 				"invalid offset %i for plane %i",
 				buffer->offset[i], i);
 			goto err_out;
@@ -231,7 +231,7 @@ params_create(struct wl_client *client,
 
 		if (buffer->offset[i] + buffer->stride[i] > size) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_OUT_OF_BOUNDS,
+				ZLINUX_BUFFER_PARAMS1_ERROR_OUT_OF_BOUNDS,
 				"invalid stride %i for plane %i",
 				buffer->stride[i], i);
 			goto err_out;
@@ -242,7 +242,7 @@ params_create(struct wl_client *client,
 		if (i == 0 &&
 		    buffer->offset[i] + buffer->stride[i] * height > size) {
 			wl_resource_post_error(params_resource,
-				ZLINUX_BUFFER_PARAMS_ERROR_OUT_OF_BOUNDS,
+				ZLINUX_BUFFER_PARAMS1_ERROR_OUT_OF_BOUNDS,
 				"invalid buffer stride or height for plane %i", i);
 			goto err_out;
 		}
@@ -269,7 +269,7 @@ params_create(struct wl_client *client,
 				       &linux_dmabuf_buffer_implementation,
 				       buffer, destroy_linux_dmabuf_wl_buffer);
 
-	zlinux_buffer_params_send_created(params_resource,
+	zlinux_buffer_params1_send_created(params_resource,
 					  buffer->buffer_resource);
 
 	return;
@@ -279,13 +279,13 @@ err_buffer:
 		buffer->user_data_destroy_func(buffer);
 
 err_failed:
-	zlinux_buffer_params_send_failed(params_resource);
+	zlinux_buffer_params1_send_failed(params_resource);
 
 err_out:
 	linux_dmabuf_buffer_destroy(buffer);
 }
 
-static const struct zlinux_buffer_params_interface
+static const struct zlinux_buffer_params1_interface
 zlinux_buffer_params_implementation = {
 	params_destroy,
 	params_add,
@@ -321,7 +321,7 @@ linux_dmabuf_create_params(struct wl_client *client,
 	buffer->compositor = compositor;
 	buffer->params_resource =
 		wl_resource_create(client,
-				   &zlinux_buffer_params_interface,
+				   &zlinux_buffer_params1_interface,
 				   version, params_id);
 	if (!buffer->params_resource)
 		goto err_dealloc;
@@ -411,7 +411,7 @@ linux_dmabuf_buffer_get_user_data(struct linux_dmabuf_buffer *buffer)
 	return buffer->user_data;
 }
 
-static const struct zlinux_dmabuf_interface linux_dmabuf_implementation = {
+static const struct zlinux_dmabuf1_interface linux_dmabuf_implementation = {
 	linux_dmabuf_destroy,
 	linux_dmabuf_create_params
 };
@@ -423,7 +423,7 @@ bind_linux_dmabuf(struct wl_client *client,
 	struct weston_compositor *compositor = data;
 	struct wl_resource *resource;
 
-	resource = wl_resource_create(client, &zlinux_dmabuf_interface,
+	resource = wl_resource_create(client, &zlinux_dmabuf1_interface,
 				      version, id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
@@ -453,7 +453,7 @@ WL_EXPORT int
 linux_dmabuf_setup(struct weston_compositor *compositor)
 {
 	if (!wl_global_create(compositor->wl_display,
-			      &zlinux_dmabuf_interface, 1,
+			      &zlinux_dmabuf1_interface, 1,
 			      compositor, bind_linux_dmabuf))
 		return -1;
 
