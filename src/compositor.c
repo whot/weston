@@ -55,7 +55,7 @@
 
 #include "compositor.h"
 #include "scaler-server-protocol.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 #include "shared/helpers.h"
 #include "shared/os-compatibility.h"
 #include "shared/timespec-util.h"
@@ -443,7 +443,7 @@ static void
 weston_presentation_feedback_discard(
 		struct weston_presentation_feedback *feedback)
 {
-	presentation_feedback_send_discarded(feedback->resource);
+	zwl_presentation_feedback1_send_discarded(feedback->resource);
 	wl_resource_destroy(feedback->resource);
 }
 
@@ -473,16 +473,17 @@ weston_presentation_feedback_present(
 		if (wl_resource_get_client(o) != client)
 			continue;
 
-		presentation_feedback_send_sync_output(feedback->resource, o);
+		zwl_presentation_feedback1_send_sync_output(feedback->resource,
+							    o);
 	}
 
 	secs = ts->tv_sec;
-	presentation_feedback_send_presented(feedback->resource,
-					     secs >> 32, secs & 0xffffffff,
-					     ts->tv_nsec,
-					     refresh_nsec,
-					     seq >> 32, seq & 0xffffffff,
-					     flags | feedback->psf_flags);
+	zwl_presentation_feedback1_send_presented(feedback->resource,
+						  secs >> 32, secs & 0xffffffff,
+						  ts->tv_nsec,
+						  refresh_nsec,
+						  seq >> 32, seq & 0xffffffff,
+						  flags | feedback->psf_flags);
 	wl_resource_destroy(feedback->resource);
 }
 
@@ -4353,7 +4354,7 @@ presentation_feedback(struct wl_client *client,
 		goto err_calloc;
 
 	feedback->resource = wl_resource_create(client,
-					&presentation_feedback_interface,
+					&zwl_presentation_feedback1_interface,
 					1, callback);
 	if (!feedback->resource)
 		goto err_create;
@@ -4372,7 +4373,7 @@ err_calloc:
 	wl_client_post_no_memory(client);
 }
 
-static const struct presentation_interface presentation_implementation = {
+static const struct zwl_presentation1_interface presentation_implementation = {
 	presentation_destroy,
 	presentation_feedback
 };
@@ -4384,7 +4385,7 @@ bind_presentation(struct wl_client *client,
 	struct weston_compositor *compositor = data;
 	struct wl_resource *resource;
 
-	resource = wl_resource_create(client, &presentation_interface,
+	resource = wl_resource_create(client, &zwl_presentation1_interface,
 				      MIN(version, 1), id);
 	if (resource == NULL) {
 		wl_client_post_no_memory(client);
@@ -4393,7 +4394,7 @@ bind_presentation(struct wl_client *client,
 
 	wl_resource_set_implementation(resource, &presentation_implementation,
 				       compositor, NULL);
-	presentation_send_clock_id(resource, compositor->presentation_clock);
+	zwl_presentation1_send_clock_id(resource, compositor->presentation_clock);
 }
 
 static void
@@ -4502,7 +4503,7 @@ weston_compositor_create(struct wl_display *display, void *user_data)
 			      ec, bind_scaler))
 		goto fail;
 
-	if (!wl_global_create(ec->wl_display, &presentation_interface, 1,
+	if (!wl_global_create(ec->wl_display, &zwl_presentation1_interface, 1,
 			      ec, bind_presentation))
 		goto fail;
 

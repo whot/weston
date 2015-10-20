@@ -38,7 +38,7 @@
 #include <wayland-client.h>
 #include "shared/helpers.h"
 #include "shared/os-compatibility.h"
-#include "presentation_timing-client-protocol.h"
+#include "presentation-timing-unstable-v1-client-protocol.h"
 
 enum run_mode {
 	RUN_MODE_FEEDBACK,
@@ -67,7 +67,7 @@ struct display {
 	struct wl_shm *shm;
 	uint32_t formats;
 
-	struct presentation *presentation;
+	struct zwl_presentation1 *presentation;
 	clockid_t clk_id;
 
 	struct wl_list output_list; /* struct output::link */
@@ -76,7 +76,7 @@ struct display {
 struct feedback {
 	struct window *window;
 	unsigned frame_no;
-	struct presentation_feedback *feedback;
+	struct zwl_presentation_feedback1 *feedback;
 	struct timespec commit;
 	struct timespec target;
 	uint32_t frame_stamp;
@@ -251,7 +251,7 @@ static void
 destroy_feedback(struct feedback *feedback)
 {
 	if (feedback->feedback)
-		presentation_feedback_destroy(feedback->feedback);
+		zwl_presentation_feedback1_destroy(feedback->feedback);
 
 	wl_list_remove(&feedback->link);
 	free(feedback);
@@ -344,7 +344,7 @@ paint_pixels(void *image, int width, int height, uint32_t phase)
 
 static void
 feedback_sync_output(void *data,
-		     struct presentation_feedback *presentation_feedback,
+		     struct zwl_presentation_feedback1 *presentation_feedback,
 		     struct wl_output *output)
 {
 	/* not interested */
@@ -357,10 +357,10 @@ pflags_to_str(uint32_t flags, char *str, unsigned len)
 		uint32_t flag;
 		char sym;
 	} desc[] = {
-		{ PRESENTATION_FEEDBACK_KIND_VSYNC, 's' },
-		{ PRESENTATION_FEEDBACK_KIND_HW_CLOCK, 'c' },
-		{ PRESENTATION_FEEDBACK_KIND_HW_COMPLETION, 'e' },
-		{ PRESENTATION_FEEDBACK_KIND_ZERO_COPY, 'z' },
+		{ ZWL_PRESENTATION_FEEDBACK1_KIND_VSYNC, 's' },
+		{ ZWL_PRESENTATION_FEEDBACK1_KIND_HW_CLOCK, 'c' },
+		{ ZWL_PRESENTATION_FEEDBACK1_KIND_HW_COMPLETION, 'e' },
+		{ ZWL_PRESENTATION_FEEDBACK1_KIND_ZERO_COPY, 'z' },
 	};
 	unsigned i;
 
@@ -400,7 +400,7 @@ timespec_diff_to_usec(const struct timespec *a, const struct timespec *b)
 
 static void
 feedback_presented(void *data,
-		   struct presentation_feedback *presentation_feedback,
+		   struct zwl_presentation_feedback1 *presentation_feedback,
 		   uint32_t tv_sec_hi,
 		   uint32_t tv_sec_lo,
 		   uint32_t tv_nsec,
@@ -456,7 +456,7 @@ feedback_presented(void *data,
 
 static void
 feedback_discarded(void *data,
-		   struct presentation_feedback *presentation_feedback)
+		   struct zwl_presentation_feedback1 *presentation_feedback)
 {
 	struct feedback *feedback = data;
 
@@ -465,7 +465,7 @@ feedback_discarded(void *data,
 	destroy_feedback(feedback);
 }
 
-static const struct presentation_feedback_listener feedback_listener = {
+static const struct zwl_presentation_feedback1_listener feedback_listener = {
 	feedback_sync_output,
 	feedback_presented,
 	feedback_discarded
@@ -492,7 +492,7 @@ static void
 window_create_feedback(struct window *window, uint32_t frame_stamp)
 {
 	static unsigned seq;
-	struct presentation *pres = window->display->presentation;
+	struct zwl_presentation1 *pres = window->display->presentation;
 	struct feedback *feedback;
 
 	seq++;
@@ -505,9 +505,9 @@ window_create_feedback(struct window *window, uint32_t frame_stamp)
 		return;
 
 	feedback->window = window;
-	feedback->feedback = presentation_feedback(pres, window->surface);
-	presentation_feedback_add_listener(feedback->feedback,
-					   &feedback_listener, feedback);
+	feedback->feedback = zwl_presentation1_feedback(pres, window->surface);
+	zwl_presentation_feedback1_add_listener(feedback->feedback,
+						&feedback_listener, feedback);
 
 	feedback->frame_no = seq;
 
@@ -559,21 +559,21 @@ static const struct wl_callback_listener frame_listener_mode_feedback = {
 	redraw_mode_feedback
 };
 
-static const struct presentation_feedback_listener feedkick_listener;
+static const struct zwl_presentation_feedback1_listener feedkick_listener;
 
 static void
 window_feedkick(struct window *window)
 {
-	struct presentation *pres = window->display->presentation;
-	struct presentation_feedback *fback;
+	struct zwl_presentation1 *pres = window->display->presentation;
+	struct zwl_presentation_feedback1 *fback;
 
-	fback = presentation_feedback(pres, window->surface);
-	presentation_feedback_add_listener(fback, &feedkick_listener, window);
+	fback = zwl_presentation1_feedback(pres, window->surface);
+	zwl_presentation_feedback1_add_listener(fback, &feedkick_listener, window);
 }
 
 static void
 feedkick_presented(void *data,
-		   struct presentation_feedback *presentation_feedback,
+		   struct zwl_presentation_feedback1 *presentation_feedback,
 		   uint32_t tv_sec_hi,
 		   uint32_t tv_sec_lo,
 		   uint32_t tv_nsec,
@@ -584,7 +584,7 @@ feedkick_presented(void *data,
 {
 	struct window *window = data;
 
-	presentation_feedback_destroy(presentation_feedback);
+	zwl_presentation_feedback1_destroy(presentation_feedback);
 	window->refresh_nsec = refresh_nsec;
 
 	switch (window->mode) {
@@ -602,11 +602,11 @@ feedkick_presented(void *data,
 
 static void
 feedkick_discarded(void *data,
-		   struct presentation_feedback *presentation_feedback)
+		   struct zwl_presentation_feedback1 *presentation_feedback)
 {
 	struct window *window = data;
 
-	presentation_feedback_destroy(presentation_feedback);
+	zwl_presentation_feedback1_destroy(presentation_feedback);
 
 	switch (window->mode) {
 	case RUN_MODE_PRESENT:
@@ -621,7 +621,7 @@ feedkick_discarded(void *data,
 	}
 }
 
-static const struct presentation_feedback_listener feedkick_listener = {
+static const struct zwl_presentation_feedback1_listener feedkick_listener = {
 	feedback_sync_output,
 	feedkick_presented,
 	feedkick_discarded
@@ -687,7 +687,8 @@ display_add_output(struct display *d, uint32_t name, uint32_t version)
 }
 
 static void
-presentation_clock_id(void *data, struct presentation *presentation,
+presentation_clock_id(void *data,
+		      struct zwl_presentation1 *presentation,
 		      uint32_t clk_id)
 {
 	struct display *d = data;
@@ -695,7 +696,7 @@ presentation_clock_id(void *data, struct presentation *presentation,
 	d->clk_id = clk_id;
 }
 
-static const struct presentation_listener presentation_listener = {
+static const struct zwl_presentation1_listener presentation_listener = {
 	presentation_clock_id
 };
 
@@ -730,12 +731,12 @@ registry_handle_global(void *data, struct wl_registry *registry,
 		wl_shm_add_listener(d->shm, &shm_listener, d);
 	} else if (strcmp(interface, "wl_output") == 0) {
 		display_add_output(d, name, version);
-	} else if (strcmp(interface, "presentation") == 0) {
+	} else if (strcmp(interface, "zwl_presentation1") == 0) {
 		d->presentation =
 			wl_registry_bind(registry,
-					 name, &presentation_interface, 1);
-		presentation_add_listener(d->presentation,
-					  &presentation_listener, d);
+					 name, &zwl_presentation1_interface, 1);
+		zwl_presentation1_add_listener(d->presentation,
+					       &presentation_listener, d);
 	}
 }
 

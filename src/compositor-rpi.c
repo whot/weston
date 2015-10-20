@@ -51,7 +51,7 @@
 #include "rpi-renderer.h"
 #include "launcher-util.h"
 #include "libinput-seat.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 
 #if 0
 #define DBG(...) \
@@ -258,8 +258,8 @@ static void
 rpi_output_update_complete(struct rpi_output *output,
 			   const struct timespec *stamp)
 {
-	uint32_t flags = PRESENTATION_FEEDBACK_KIND_VSYNC |
-			 PRESENTATION_FEEDBACK_KIND_HW_COMPLETION;
+	uint32_t flags = ZWL_PRESENTATION_FEEDBACK1_KIND_VSYNC |
+			 ZWL_PRESENTATION_FEEDBACK1_KIND_HW_COMPLETION;
 
 	DBG("frame update complete(%ld.%09ld)\n",
 	    (long)stamp->tv_sec, (long)stamp->tv_nsec);

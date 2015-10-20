@@ -55,7 +55,7 @@
 #include "libinput-seat.h"
 #include "launcher-util.h"
 #include "vaapi-recorder.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 #include "linux-dmabuf.h"
 
 #ifndef DRM_CAP_TIMESTAMP_MONOTONIC
@@ -821,8 +821,8 @@ vblank_handler(int fd, unsigned int frame, unsigned int sec, unsigned int usec,
 	struct drm_sprite *s = (struct drm_sprite *)data;
 	struct drm_output *output = s->output;
 	struct timespec ts;
-	uint32_t flags = PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
-			 PRESENTATION_FEEDBACK_KIND_HW_CLOCK;
+	uint32_t flags = ZWL_PRESENTATION_FEEDBACK1_KIND_HW_COMPLETION |
+			 ZWL_PRESENTATION_FEEDBACK1_KIND_HW_CLOCK;
 
 	drm_output_update_msc(output, frame);
 	output->vblank_pending = 0;
@@ -847,9 +847,9 @@ page_flip_handler(int fd, unsigned int frame,
 {
 	struct drm_output *output = (struct drm_output *) data;
 	struct timespec ts;
-	uint32_t flags = PRESENTATION_FEEDBACK_KIND_VSYNC |
-			 PRESENTATION_FEEDBACK_KIND_HW_COMPLETION |
-			 PRESENTATION_FEEDBACK_KIND_HW_CLOCK;
+	uint32_t flags = ZWL_PRESENTATION_FEEDBACK1_KIND_VSYNC |
+			 ZWL_PRESENTATION_FEEDBACK1_KIND_HW_COMPLETION |
+			 ZWL_PRESENTATION_FEEDBACK1_KIND_HW_CLOCK;
 
 	drm_output_update_msc(output, frame);
 
@@ -1281,7 +1281,7 @@ drm_assign_planes(struct weston_output *output_base)
 			/* All other planes are a direct scanout of a
 			 * single client buffer.
 			 */
-			ev->psf_flags = PRESENTATION_FEEDBACK_KIND_ZERO_COPY;
+			ev->psf_flags = ZWL_PRESENTATION_FEEDBACK1_KIND_ZERO_COPY;
 		}
 
 		pixman_region32_fini(&surface_overlap);

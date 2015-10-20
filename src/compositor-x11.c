@@ -55,7 +55,7 @@
 #include "shared/config-parser.h"
 #include "shared/helpers.h"
 #include "shared/image-loader.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 #include "linux-dmabuf.h"
 
 #define DEFAULT_AXIS_STEP_DISTANCE wl_fixed_from_int(10)

@@ -48,7 +48,7 @@
 #include "pixman-renderer.h"
 #include "libinput-seat.h"
 #include "gl-renderer.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 
 struct fbdev_backend {
 	struct weston_backend base;

@@ -34,7 +34,7 @@
 #include "shared/helpers.h"
 #include "compositor.h"
 #include "pixman-renderer.h"
-#include "presentation_timing-server-protocol.h"
+#include "presentation-timing-unstable-v1-server-protocol.h"
 
 struct headless_backend {
 	struct weston_backend base;

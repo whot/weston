@@ -34,7 +34,7 @@
 
 #include "shared/helpers.h"
 #include "shared/os-compatibility.h"
-#include "presentation_timing-client-protocol.h"
+#include "presentation-timing-unstable-v1-client-protocol.h"
 
 typedef void (*print_info_t)(void *info);
 typedef void (*destroy_info_t)(void *info);
@@ -102,7 +102,7 @@ struct seat_info {
 
 struct presentation_info {
 	struct global_info global;
-	struct presentation *presentation;
+	struct zwl_presentation1 *presentation;
 
 	clockid_t clk_id;
 };
@@ -567,7 +567,7 @@ destroy_presentation_info(void *info)
 {
 	struct presentation_info *prinfo = info;
 
-	presentation_destroy(prinfo->presentation);
+	zwl_presentation1_destroy(prinfo->presentation);
 }
 
 static const char *
@@ -602,7 +602,8 @@ print_presentation_info(void *info)
 }
 
 static void
-presentation_handle_clock_id(void *data, struct presentation *presentation,
+presentation_handle_clock_id(void *data,
+			     struct zwl_presentation1 *presentation,
 			     uint32_t clk_id)
 {
 	struct presentation_info *prinfo = data;
@@ -610,7 +611,7 @@ presentation_handle_clock_id(void *data, struct presentation *presentation,
 	prinfo->clk_id = clk_id;
 }
 
-static const struct presentation_listener presentation_listener = {
+static const struct zwl_presentation1_listener presentation_listener = {
 	presentation_handle_clock_id
 };
 
@@ -625,9 +626,11 @@ add_presentation_info(struct weston_info *info, uint32_t id, uint32_t version)
 
 	prinfo->clk_id = -1;
 	prinfo->presentation = wl_registry_bind(info->registry, id,
-						&presentation_interface, 1);
-	presentation_add_listener(prinfo->presentation, &presentation_listener,
-				  prinfo);
+						&zwl_presentation1_interface,
+						1);
+	zwl_presentation1_add_listener(prinfo->presentation,
+				       &presentation_listener,
+				       prinfo);
 
 	info->roundtrip_needed = true;
 }
