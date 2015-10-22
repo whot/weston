@@ -1077,7 +1077,8 @@ notify_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
 	    wl_fixed_t value);
 
 void
-notify_axis_discrete(struct weston_seat *seat, int32_t discrete);
+notify_axis_discrete(struct weston_seat *seat, uint32_t axis,
+		     int32_t discrete);
 
 void
 notify_axis_source(struct weston_seat *seat, uint32_t source);

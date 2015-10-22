@@ -1083,7 +1083,9 @@ x11_backend_deliver_button_event(struct x11_backend *b,
 		/* Axis are measured in pixels, but the xcb events are discrete
 		 * steps. Therefore move the axis by some pixels every step. */
 		if (state) {
-			notify_axis_discrete(&b->core_seat, -1);
+			notify_axis_discrete(&b->core_seat,
+					     WL_POINTER_AXIS_VERTICAL_SCROLL,
+					     -1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_VERTICAL_SCROLL,
@@ -1092,7 +1094,9 @@ x11_backend_deliver_button_event(struct x11_backend *b,
 		return;
 	case 5:
 		if (state) {
-			notify_axis_discrete(&b->core_seat, 1);
+			notify_axis_discrete(&b->core_seat,
+					     WL_POINTER_AXIS_VERTICAL_SCROLL,
+					     1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_VERTICAL_SCROLL,
@@ -1101,7 +1105,9 @@ x11_backend_deliver_button_event(struct x11_backend *b,
 		return;
 	case 6:
 		if (state) {
-			notify_axis_discrete(&b->core_seat, -1);
+			notify_axis_discrete(&b->core_seat,
+					     WL_POINTER_AXIS_HORIZONTAL_SCROLL,
+					     -1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_HORIZONTAL_SCROLL,
@@ -1110,7 +1116,9 @@ x11_backend_deliver_button_event(struct x11_backend *b,
 		return;
 	case 7:
 		if (state) {
-			notify_axis_discrete(&b->core_seat, 1);
+			notify_axis_discrete(&b->core_seat,
+					     WL_POINTER_AXIS_HORIZONTAL_SCROLL,
+					     1);
 			notify_axis(&b->core_seat,
 				    weston_compositor_get_time(),
 				    WL_POINTER_AXIS_HORIZONTAL_SCROLL,

@@ -252,7 +252,9 @@ handle_pointer_axis(struct libinput_device *libinput_device,
 	if (libinput_event_pointer_has_axis(pointer_event, axis)) {
 		if (fetch_axis_discrete(pointer_event, axis,
 					&value_discrete))
-		    notify_axis_discrete(device->seat, value_discrete);
+		    notify_axis_discrete(device->seat,
+					 WL_POINTER_AXIS_VERTICAL_SCROLL,
+					 value_discrete);
 
 		value = normalize_scroll(pointer_event, axis);
 		notify_axis(device->seat,
@@ -265,7 +267,9 @@ handle_pointer_axis(struct libinput_device *libinput_device,
 	if (libinput_event_pointer_has_axis(pointer_event, axis)) {
 		if (fetch_axis_discrete(pointer_event, axis,
 					&value_discrete))
-		    notify_axis_discrete(device->seat, value_discrete);
+		    notify_axis_discrete(device->seat,
+					 WL_POINTER_AXIS_HORIZONTAL_SCROLL,
+					 value_discrete);
 
 		value = normalize_scroll(pointer_event, axis);
 		notify_axis(device->seat,

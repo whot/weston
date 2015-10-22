@@ -1457,11 +1457,11 @@ input_handle_axis_stop(void *data, struct wl_pointer *pointer,
 
 static void
 input_handle_axis_discrete(void *data, struct wl_pointer *pointer,
-			   int32_t discrete)
+			   uint32_t axis, int32_t discrete)
 {
 	struct wayland_input *input = data;
 
-	notify_axis_discrete(&input->base, discrete);
+	notify_axis_discrete(&input->base, axis, discrete);
 }
 
 static const struct wl_pointer_listener pointer_listener = {

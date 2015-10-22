@@ -1104,7 +1104,8 @@ notify_axis(struct weston_seat *seat, uint32_t time, uint32_t axis,
 }
 
 WL_EXPORT void
-notify_axis_discrete(struct weston_seat *seat, int32_t discrete)
+notify_axis_discrete(struct weston_seat *seat, uint32_t axis,
+		     int32_t discrete)
 {
 	struct weston_compositor *compositor = seat->compositor;
 	struct weston_pointer *pointer = weston_seat_get_pointer(seat);
@@ -1117,7 +1118,7 @@ notify_axis_discrete(struct weston_seat *seat, int32_t discrete)
 	wl_resource_for_each(resource, resource_list) {
 		if (wl_resource_get_version(resource) >=
 		    WL_POINTER_AXIS_DISCRETE_SINCE_VERSION) {
-			wl_pointer_send_axis_discrete(resource, discrete);
+			wl_pointer_send_axis_discrete(resource, axis, discrete);
 		}
 	}
 }
