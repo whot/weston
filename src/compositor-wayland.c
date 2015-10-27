@@ -1430,11 +1430,11 @@ input_handle_axis(void *data, struct wl_pointer *pointer,
 }
 
 static void
-input_handle_axis_frame(void *data, struct wl_pointer *pointer)
+input_handle_frame(void *data, struct wl_pointer *pointer)
 {
 	struct wayland_input *input = data;
 
-	notify_axis_frame(&input->base);
+	notify_pointer_frame(&input->base);
 }
 
 static void
@@ -1470,7 +1470,7 @@ static const struct wl_pointer_listener pointer_listener = {
 	input_handle_motion,
 	input_handle_button,
 	input_handle_axis,
-	input_handle_axis_frame,
+	input_handle_frame,
 	input_handle_axis_source,
 	input_handle_axis_stop,
 	input_handle_axis_discrete,

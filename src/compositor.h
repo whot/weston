@@ -1084,7 +1084,7 @@ void
 notify_axis_source(struct weston_seat *seat, uint32_t source);
 
 void
-notify_axis_frame(struct weston_seat *seat);
+notify_pointer_frame(struct weston_seat *seat);
 
 void
 notify_key(struct weston_seat *seat, uint32_t time, uint32_t key,

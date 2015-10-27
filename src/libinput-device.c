@@ -278,7 +278,7 @@ handle_pointer_axis(struct libinput_device *libinput_device,
 			    wl_fixed_from_double(value));
 	}
 
-	notify_axis_frame(device->seat);
+	notify_pointer_frame(device->seat);
 }
 
 static void

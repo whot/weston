@@ -260,9 +260,9 @@ axis_handler(struct widget *widget, struct input *input, uint32_t time,
 }
 
 static void
-axis_frame_handler(struct widget *widget, struct input *input, void *data)
+pointer_frame_handler(struct widget *widget, struct input *input, void *data)
 {
-	printf("axis frame\n");
+	printf("pointer frame\n");
 }
 
 static void
@@ -395,10 +395,12 @@ eventdemo_create(struct display *d)
 	/* Set the callback motion handler for the window */
 	widget_set_motion_handler(e->widget, motion_handler);
 
+	/* Set the callback pointer frame handler for the window */
+	widget_set_pointer_frame_handler(e->widget, pointer_frame_handler);
+
 	/* Set the callback axis handler for the window */
 	widget_set_axis_handlers(e->widget,
 				 axis_handler,
-				 axis_frame_handler,
 				 axis_source_handler,
 				 axis_stop_handler,
 				 axis_discrete_handler);

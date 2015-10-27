@@ -1143,7 +1143,7 @@ notify_axis_source(struct weston_seat *seat, uint32_t source)
 }
 
 WL_EXPORT void
-notify_axis_frame(struct weston_seat *seat)
+notify_pointer_frame(struct weston_seat *seat)
 {
 	struct weston_compositor *compositor = seat->compositor;
 	struct weston_pointer *pointer = weston_seat_get_pointer(seat);
@@ -1155,8 +1155,8 @@ notify_axis_frame(struct weston_seat *seat)
 	resource_list = &pointer->focus_resource_list;
 	wl_resource_for_each(resource, resource_list) {
 		if (wl_resource_get_version(resource) >=
-		    WL_POINTER_AXIS_FRAME_SINCE_VERSION) {
-			wl_pointer_send_axis_frame(resource);
+		    WL_POINTER_FRAME_SINCE_VERSION) {
+			wl_pointer_send_frame(resource);
 		}
 	}
 }
