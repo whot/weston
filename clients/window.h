@@ -284,6 +284,7 @@ typedef void (*widget_axis_stop_handler_t)(struct widget *widget,
 
 typedef void (*widget_axis_discrete_handler_t)(struct widget *widget,
 					       struct input *input,
+					       uint32_t axis,
 					       int32_t discrete,
 					       void *data);
 

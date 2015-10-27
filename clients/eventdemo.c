@@ -302,9 +302,9 @@ axis_stop_handler(struct widget *widget, struct input *input,
 
 static void
 axis_discrete_handler(struct widget *widget, struct input *input,
-		      int32_t discrete, void *data)
+		      uint32_t axis, int32_t discrete, void *data)
 {
-	printf("axis discrete value: %d\n", discrete);
+	printf("axis discrete axis: %d value: %d\n", axis, discrete);
 }
 
 /**

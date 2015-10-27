@@ -2891,7 +2891,7 @@ pointer_handle_axis_stop(void *data, struct wl_pointer *pointer,
 
 static void
 pointer_handle_axis_discrete(void *data, struct wl_pointer *pointer,
-			     int32_t discrete)
+			     uint32_t axis, int32_t discrete)
 {
 	struct input *input = data;
 	struct widget *widget;
@@ -2902,6 +2902,7 @@ pointer_handle_axis_discrete(void *data, struct wl_pointer *pointer,
 	if (widget && widget->axis_discrete_handler)
 		(*widget->axis_discrete_handler)(widget,
 						 input,
+						 axis,
 						 discrete,
 						 widget->user_data);
 }
