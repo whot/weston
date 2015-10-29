@@ -3,6 +3,7 @@
 
   <copyright>
     Copyright 2014 © Stephen "Lyude" Chandler Paul
+    Copyright 2015 © Red Hat, Inc.
 
     Permission to use, copy, modify, distribute, and sell this
     software and its documentation for any purpose is hereby granted
@@ -29,75 +30,145 @@
   <interface name="wl_tablet_manager" version="1">
     <description summary="controller object for graphic tablet devices">
       An object that provides access to the graphics tablets available on this
-      system.
+      system. Any tablet is associated with a seat, to get access to the
+      actual tablets, use wl_tablet_manager.get_tablet_seat.
     </description>
 
-    <enum name="tablet_type">
-      <description summary="tablet type">
-	Describes the type of tablet
+    <request name="get_tablet_seat">
+      <description summary="get the tablet seat">
+	Get the wl_tablet_seat object for the given seat. This object
+	provides access to all graphics tablets in this seat.
       </description>
+      <arg name="tablet_seat" type="new_id" interface="wl_tablet_seat"/>
+      <arg name="seat" type="object" interface="wl_seat" summary="The wl_seat object to retrieve the tablets for" />
+    </request>
 
-      <entry name="external" value="0" summary="The tablet is an external tablet, such as an Intuos"/>
-      <entry name="internal" value="1" summary="The tablet is a built-in tablet, usually in a laptop"/>
-      <entry name="display" value="2" summary="The tablet is a display tablet, such as a Cintiq"/>
-    </enum>
+    <request name="destroy" type="destructor">
+      <description summary="release the memory for the tablet manager object">
+	This destroys the resources associated with the tablet manager.
+      </description>
+    </request>
+  </interface>
 
-    <event name="device_added">
-      <description summary="new device notification"/>
+  <interface name="wl_tablet_seat" version="1">
+    <description summary="controller object for graphic tablet devices of a seat">
+      An object that provides access to the graphics tablets available on this
+      seat. After binding to this interface, the compositor sends a set of
+      wl_tablet_seat.tablet_added and wl_tablet_seat.tool_added events.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="release the memory for the tablet seat object">
+	This destroys the resources associated with the tablet seat.
+      </description>
+    </request>
+
+    <event name="tablet_added">
+      <description summary="new device notification">
+	This event is sent whenever a new tablet becomes available on this
+	seat. This event only provides the object id of the tablet, any
+	static information about the tablet (device name, vid/pid, etc.) is
+	sent through the wl_tablet interface.
+      </description>
       <arg name="id" type="new_id" interface="wl_tablet" summary="the newly added graphics tablet"/>
-      <arg name="name" type="string" summary="the device name"/>
-      <arg name="vid" type="uint" summary="vendor id"/>
-      <arg name="pid" type="uint" summary="product id"/>
-      <arg name="type" type="uint"/>
     </event>
 
     <event name="tool_added">
       <description summary="a new tool has been used with a tablet">
 	This event is sent whenever a tool that has not previously been used
-	with a tablet comes into use. This provides the information about the
-	tool, along with a wl_tablet_tool object that is unique to this tool.
-	If the tablet the tool is being used with does not report the serial
-	numbers for each tool, then the uniqueness of each tool object cannot
-	be guaranteed. On tablets where the serial number is not reported, the
-	"tool_serial" argument will always be 0.
+	with a tablet comes into use. This event only provides the object id
+	of the tool, any static information about the tool (capabilities,
+	type, et.c) is sent through the wl_tablet_tool interface.
       </description>
       <arg name="id" type="new_id" interface="wl_tablet_tool" summary="the newly added tablet tool"/>
-      <arg name="tablet" type="object" interface="wl_tablet" summary="The tablet that the tool was seen with"/>
-      <arg name="tool_type" type="uint" summary="the physical tool type"/>
-      <arg name="tool_serial" type="uint" summary="the unique serial number of the tool"/>
-      <arg name="extra_axes" type="uint" summary="A bitfield of all of the extra axes the tablet supports"/>
-    </event>
-
-    <event name="seat">
-      <description summary="the seat associated with the tablet manager">
-	For various functions with the weston desktop shell, a input seat of
-	some sort is required. Because tablets are not officially part of the
-	wayland protocol yet, we can't grab the tablet manager resource from
-	the seat like we would a pointer or a touchscreen. Therefore, an event
-	must be sent that contains a pointer to the wl_seat object that the
-	client is using that is associated with the tablet manager.
-      </description>
-      <arg name="seat" type="object" interface="wl_seat" summary="The wl_seat object for the tablet manager"/>
     </event>
   </interface>
 
   <interface name="wl_tablet_tool" version="1">
     <description summary="a physical tablet tool">
       An unique object that represents a physical tool that has been, or is
-      currently in use with a tablet connected to the system. Each
-      wl_tablet_tool object stays valid until the client releases it, and the
-      compositor will always reuse the wl_tablet_tool object (if it still
-      exists) to indicate that the object's respective physical tool has come
-      into proximity of a tablet again.
+      currently in use with a tablet in this seat. Each wl_tablet_tool
+      object stays valid until the client destroys it; the compositor
+      reuses the wl_tablet_tool object to indicate that the object's
+      respective physical tool has come into proximity of a tablet again.
+      A client must not call wl_tablet_tool.destroy until it receives a
+      wl_tablet_tool.release event.
 
-      It should be noted that each wl_tablet_tool object's uniqueness depends on
-      the tablet's ability to report serial numbers. If the tablet doesn't
-      support this capability, then the tool cannot be guaranteed to be unique.
+      A wl_tablet_tool object's uniqueness depends on the tablet's ability
+      to report serial numbers. If the tablet doesn't support this
+      capability, then the tool cannot be guaranteed to be unique.
+
+      A tablet tool has a number of static characteristics, e.g. tool type,
+      serial_id and capabilities. These capabilities are sent in an event
+      sequence after the wl_tablet_seat.tool_added event before any actual
+      events from this tool. This initial event sequence is terminated by a
+      wl_tablet_tool.done event.
+
+      Tablet tool events are grouped by wl_tablet_tool.frame events.
+      Any events received before a wl_tablet_tool.frame event should be
+      considered part of the same hardware state change.
     </description>
+
+    <request name="set_cursor">
+      <description summary="set the tablet tool's surface">
+	Sets the surface of the cursor used for this tool on the given
+	tablet. The surface is only shown when this tool is in proximity of
+	this tablet. If the surface is NULL, the pointer image is hidden
+	completely.
+
+	The parameters hotspot_x and hotspot_y define the position of the
+	pointer surface relative to the pointer location. Its top-left corner
+	is always at (x, y) - (hotspot_x, hotspot_y), where (x, y) are the
+	coordinates of the pointer location, in surface local coordinates.
+
+	On surface.attach requests to the pointer surface, hotspot_x and
+	hotspot_y are decremented by the x and y parameters passed to the
+	request. Attach must be confirmed by wl_surface.commit as usual.
+
+	The hotspot can also be updated by passing the currently set pointer
+	surface to this request with new values for hotspot_x and hotspot_y.
+
+	The current and pending input regions of the wl_surface are cleared,
+	and wl_surface.set_input_region is ignored until the wl_surface is no
+	longer used as the cursor. When the use as a cursor ends, the current
+	and pending input regions become undefined, and the wl_surface is
+	unmapped.
+
+	This request gives the surface the role of a cursor. The role
+	assigned by this request is the same as assigned by
+	wl_pointer.set_cursor meaning the same surface can be
+	used both as a wl_pointer cursor and a wl_tablet cursor. If the
+	surface already has another role, it raises a protocol error
+	The surface may be used on multiple tablets and across multiple
+	seats.
+      </description>
+      <arg name="serial" type="uint" summary="serial of the enter event"/>
+      <arg name="surface" type="object" interface="wl_surface" allow-null="true"/>
+      <arg name="hotspot_x" type="int" summary="x coordinate in surface-relative coordinates"/>
+      <arg name="hotspot_y" type="int" summary="y coordinate in surface-relative coordinates"/>
+      <arg name="tablet" type="object" interface="wl_tablet" summary="the tablet the tool must be in proximity of" />
+    </request>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the tool object">
+	This destroys the client's resource for this tool object.
+
+	A client must not issue this request until it receives a
+	wl_tablet_tool.remove event.
+      </description>
+    </request>
 
     <enum name="type">
       <description summary="a physical tool type">
-	Describes the physical type of a tool.
+	Describes the physical type of a tool. The physical type of a tool
+	generally defines its base usage.
+
+	The mouse tool represents a mouse-shaped tool that is not a relative
+	device but bound to the tablet's surface, providing absolute
+	coordinates.
+
+	The lens tool is a mouse-shaped tool with an attached lens to
+	provide precision focus.
       </description>
       <entry name="pen" value="0x140" summary="Pen"/>
       <entry name="eraser" value="0x141" summary="Eraser"/>
@@ -109,86 +180,151 @@
       <entry name="lens" value="0x147" summary="Lens"/>
     </enum>
 
-    <enum name="axis_flag">
-      <description summary="a group of additional axes for a tablet">
-	Describes a group of additional axes on a tablet.
+    <event name="type">
+      <description summary="tool type">
+	The tool type is the high-level type of the tool and usually decides
+	the interaction expected from this tool.
+
+	This event is sent in the initial burst of events before the
+	wl_tablet_tool.done event.
+      </description>
+      <arg name="tool_type" type="uint" summary="the physical tool type"/>
+    </event>
+
+    <event name="serial_id">
+      <description summary="unique serial number of the tool">
+	If the tool can be identified by a unique 64-bit serial number, this
+	event notifies the client of the serial number.
+
+	If multiple tablets are available in the same seat and the tool is
+	uniquely identifiable by the serial number, that tool may move
+	between tablets.
+
+	Otherwise, if the tool has no serial number and this event is
+	missing, the tool is tied to the tablet it first comes into
+	proximity with. Even if the physical tool is used on multiple
+	tablets, separate wl_tablet_tool objects will be created, one per
+	tablet.
+
+	This event is sent in the initial burst of events before the
+	wl_tablet_tool.done event.
+      </description>
+      <arg name="serial_id_msb" type="uint" summary="the unique serial number of the tool, most significant bits"/>
+      <arg name="serial_id_lsb" type="uint" summary="the unique serial number of the tool, least significant bits"/>
+    </event>
+
+    <enum name="hardware_id_format">
+      <description summary="the hardware id format">
+	Specifies the format of the hardware id in the
+	wl_tablet_tool.hardware_id event.
+
+	A wacom_stylus_id format indicates a hardware id as the id used by
+	graphics tablet made by Wacom Inc. For example, on Wacom tablets the
+	hardware id of a Grip Pen (a stylus) is 0x802.
+      </description>
+      <entry name="wacom_stylus_id" value="0" />
+    </enum>
+
+    <event name="hardware_id">
+      <description summary="hardware id notification">
+	This event notifies the client of a hardware id available on this tool.
+
+	The hardware id is a device-specific 64-bit id that provides extra
+	information about the tool in use, beyond the wl_tool.type
+	enumeration. The format of the id is device-specific.
+
+	This event is sent in the initial burst of events before the
+	wl_tablet_tool.done event.
+      </description>
+      <arg name="format" type="uint" summary="the type of the id" />
+      <arg name="hardware_id_msb" type="uint" summary="the hardware id, most significant bits"/>
+      <arg name="hardware_id_lsb" type="uint" summary="the hardware id, least significant bits"/>
+    </event>
+
+
+    <enum name="capability">
+      <description summary="capability flags for a tool">
+	Describes extra capabilities on a tablet.
+
+	Any tool must provide x and y values, extra axes are
+	device-specific.
       </description>
       <entry name="tilt" value="1" summary="Tilt axes"/>
       <entry name="pressure" value="2" summary="Pressure axis"/>
-      <entry name="distance" value="4" summary="Distance axis"/>
+      <entry name="distance" value="3" summary="Distance axis"/>
     </enum>
+
+    <event name="capability">
+      <description summary="tool capability notification">
+	This event notifies the client of any capabilities of this tool,
+	beyond the main set of x/y axes and tip up/down detection.
+
+	One event is sent for each extra capability available on this tool.
+
+	This event is sent in the initial burst of events before the
+	wl_tablet_tool.done event.
+      </description>
+      <arg name="capability" type="uint" summary="the capability"/>
+    </event>
+
+    <event name="done">
+      <description summary="tool description events sequence complete">
+	This event signals the end of the initial burst of descriptive
+	events. A client may consider the static description of the tool to
+	be complete and finalize initialization of the tool.
+      </description>
+    </event>
 
     <event name="removed">
       <description summary="tool removed">
 	This event is sent when the tool is removed from the system. The client
 	should not expect the resource it currently has associated with the
 	tool to be used again if the tool comes back into proximity later.
+
+	It is compositor-dependent when a tool is removed. Some tools are
+	associated with a single tablet only and may get removed when the
+	respective tablet is removed. Other tools may be used on multiple
+	tablets and removing a tablet may not remove this tool.
+
+	When this event is received, the client must wl_tablet_tool.destroy
+	the object.
       </description>
     </event>
 
-    <request name="release" type="destructor">
-      <description summary="release the memory for the tool object">
-	This destroys the client's resource for this tool object. If the tool
-	comes back into proximity, a new resource will be created for the
-	client and associated with the tool.
-      </description>
-    </request>
-  </interface>
-
-  <interface name="wl_tablet" version="1">
-    <description summary="drawing tablet device">
-      The wl_tablet interface represents one drawing tablet device.
-
-      The wl_tablet interface generates axis events, enter, and leave events for
-      the surfaces that the tool is held over and button events for the buttons
-      on a tablet tool.
-    </description>
-
-    <enum name="button_state">
-      <description summary="physical button state">
-	Describes the physical state of a button which provoked the button event
-      </description>
-      <entry name="released" value="0" summary="button is not pressed"/>
-      <entry name="pressed" value="1" summary="button is pressed"/>
-    </enum>
-
     <event name="proximity_in">
       <description summary="proximity in event">
-	Notification that this tablet's tool is focused on a certain surface.
+	Notification that this tool is focused on a certain surface.
 
 	This event can be received when the tool has moved from one surface to
-	another, or when the tool has come back into proximity.
-      </description>
+	another, or when the tool has come back into proximity above the
+	surface.
 
+	Any button events sent within the same wl_tablet.frame as a
+	proximity_in event indicate the button state of the tool at the time
+	of proximity in.
+      </description>
       <arg name="serial" type="uint"/>
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-      <arg name="tool" type="object" interface="wl_tablet_tool" summary="The tool that came into proximity"/>
+      <arg name="tablet" type="object" interface="wl_tablet" summary="The tablet the tool is in proximity of"/>
       <arg name="surface" type="object" interface="wl_surface" summary="The current surface the tablet tool is over"/>
     </event>
 
     <event name="proximity_out">
       <description summary="proximity out event">
-	Notification that this tablet's tool has either left proximity, or is no
+	Notification that this tool has either left proximity, or is no
 	longer focused on a certain surface.
 
-	In addition, when the tablet tool leaves proximity of the tablet, a set
-	of button release events will be sent for each button that was held
-	down on the tablet. If the tool stays within proximity of the tablet,
-	but the focus changes from one surface to another, a button release
-	event will not be sent until the button is actually released or the
-	tool leaves the proximity of the tablet.
-      </description>
+	When the tablet tool leaves proximity of the tablet, button release
+	events are sent for each button that was held down at the time of
+	leaving proximity. These events are sent in the same wl_tablet.frame
+	of the proximity_out event.
 
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-    </event>
-
-    <event name="motion">
-      <description summary="motion event">
-	Sent whenever a tablet tool moves.
+	If the tool stays within proximity of the tablet, but the focus
+	changes from one surface to another, a button release event may not
+	be sent until the button is actually released or the tool leaves the
+	proximity of the tablet.
       </description>
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-      <arg name="x" type="fixed" summary="surface-relative x coordinate"/>
-      <arg name="y" type="fixed" summary="surface-relative y coordinate"/>
     </event>
 
     <event name="down">
@@ -212,13 +348,22 @@
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
     </event>
 
+    <event name="motion">
+      <description summary="motion event">
+	Sent whenever a tablet tool moves.
+      </description>
+      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
+      <arg name="x" type="fixed" summary="surface-relative x coordinate"/>
+      <arg name="y" type="fixed" summary="surface-relative y coordinate"/>
+    </event>
+
     <event name="pressure">
       <description summary="pressure change event">
 	Sent whenever the pressure axis on a tool changes. The value of this
 	event is normalized to a value between 0 and 65535.
       </description>
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-      <arg name="pressure" type="fixed" summary="The current pressure value"/>
+      <arg name="pressure" type="uint" summary="The current pressure value"/>
     </event>
 
     <event name="distance">
@@ -227,7 +372,7 @@
 	event is normalized to a value between 0 and 65535.
       </description>
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-      <arg name="distance" type="fixed" summary="The current distance value"/>
+      <arg name="distance" type="uint" summary="The current distance value"/>
     </event>
 
     <event name="tilt">
@@ -236,9 +381,17 @@
 	value is normalized between -65535 and 65535.
       </description>
       <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
-      <arg name="tilt_x" type="fixed" summary="The current value of the X tilt axis"/>
-      <arg name="tilt_y" type="fixed" summary="The current value of the Y tilt axis"/>
+      <arg name="tilt_x" type="int" summary="The current value of the X tilt axis"/>
+      <arg name="tilt_y" type="int" summary="The current value of the Y tilt axis"/>
     </event>
+
+    <enum name="button_state">
+      <description summary="physical button state">
+	Describes the physical state of a button which provoked the button event
+      </description>
+      <entry name="released" value="0" summary="button is not pressed"/>
+      <entry name="pressed" value="1" summary="button is pressed"/>
+    </enum>
 
     <event name="button">
       <description summary="button event">
@@ -253,59 +406,111 @@
 
     <event name="frame">
       <description summary="frame event">
-	Marks the end of a series of axis updates from the tablet. Motion,
-	pressure, distance, and tilt events are all axis events. Axis updates
-	are received from drawing tablets at the same time, so the frame event
-	may be used to separate each individual series of axis updates.
+	Marks the end of a series of axis and/or button updates from the
+	tablet. The wayland protocol requires axis updates to be sent
+	sequentially, however all events within a frame should be considered
+	one hardware event.
+      </description>
+    </event>
+
+    <enum name="error">
+      <entry name="role" value="0" summary="given wl_surface has another role"/>
+    </enum>
+  </interface>
+
+  <interface name="wl_tablet" version="1">
+    <description summary="graphics tablet device">
+      The wl_tablet interface represents one graphics tablet device. The
+      tablet interface itself does not generate events, all events are
+      generated by wl_tablet_tool objects when in proximity above a tablet.
+
+      A tablet has a number of static characteristics, e.g. device name and
+      pid/vid. These capabilities are sent in an event sequence after the
+      wl_tablet_seat.tablet_added event. This initial event sequence is
+      terminated by a wl_tablet.done event.
+    </description>
+
+    <request name="destroy" type="destructor">
+      <description summary="destroy the tablet object">
+	This destroys the client's resource for this tablet object.
+
+	A client must not issue this request until it receives a
+	wl_tablet.remove event.
+      </description>
+    </request>
+
+    <event name="name">
+      <description summary="tablet device name">
+	This event is sent in the initial burst of events before the
+	wl_tablet.done event.
+      </description>
+      <arg name="name" type="string" summary="the device name"/>
+    </event>
+
+    <event name="id">
+      <description summary="tablet device vid/pid">
+	This event is sent in the initial burst of events before the
+	wl_tablet.done event.
+      </description>
+      <arg name="vid" type="uint" summary="vendor id"/>
+      <arg name="pid" type="uint" summary="product id"/>
+    </event>
+
+    <enum name="tablet_type">
+      <description summary="tablet type">
+	Describes the type of tablet
+      </description>
+
+      <entry name="external" value="0" summary="The tablet is an external tablet, such as an Intuos"/>
+      <entry name="internal" value="1" summary="The tablet is a built-in tablet, usually in a laptop"/>
+      <entry name="display" value="2" summary="The tablet is a display tablet, such as a Cintiq"/>
+    </enum>
+
+    <event name="type">
+      <description summary="the tablet type">
+	This event is sent in the initial burst of events before the
+	wl_tablet.done event.
+      </description>
+      <arg name="type" type="uint" summary="the tablet type (internal, external, ...)"/>
+    </event>
+
+    <event name="path">
+      <description summary="path to the device">
+	A system-specific device path that indicates which device is behind
+	this wl_tablet. This information may be used to gather additional
+	information about the device, e.g. through libwacom.
+
+	A device may have more than one device path, if so, multiple
+	wl_tablet.path events are sent. A device may be emulated and not
+	have a device path, in that case this event will not be sent.
+
+	The format of the path is unspecified, it may be a device node, a
+	sysfs path, or some other identifier. It is up to the client to
+	identify the string provided.
+
+	This event is sent in the initial burst of events before the
+	wl_tablet.done event.
+      </description>
+      <arg name="path" type="string" summary="path to local device"/>
+    </event>
+
+    <event name="done">
+      <description summary="tablet description events sequence complete">
+	This event is sent immediately to signal the end of the initial
+	burst of descriptive events. A client may consider the static
+	description of the tablet to be complete and finalize initialization
+	of the tablet.
       </description>
     </event>
 
     <event name="removed">
       <description summary="tablet removed event">
-	Sent when the tablet has been removed from the system. The behavior of
-	the wl_tablet_tool objects afterwards depends on the type of the
-	tablet. For tablets where serial numbers are reported, the tools will
-	be kept in memory until there are no other tablets which support serial
-	numbers connected to the system. If the tool object is one that lacks a
-	serial number because it originated from a tablet where serial numbers
-	are not reported, then it will be destroyed if the tablet it belongs to
-	is destroyed.
+	Sent when the tablet has been removed from the system. When a tablet
+	is removed, some tools may be removed.
+
+	When this event is received, the client must wl_tablet.destroy
+	the object.
       </description>
     </event>
-
-    <request name="release" type="destructor">
-      <description summary="release the tablet object"/>
-    </request>
-
-    <request name="set_cursor">
-      <description summary="set the tablet tool's surface">
-	Sets the surface of the pointer used for the tablet's tool object. This
-	surface is only shown when the tool is in proximity of the tablet. If
-	the surface is NULL, the pointer image is hidden completely.
-
-	The parameters hotspot_x and hotspot_y define the position of the
-	pointer surface relative to the pointer location. Its top-left corner
-	is always at (x, y) - (hotspot_x, hotspot_y), where (x, y) are the
-	coordinates of the pointer location, in surface local coordinates.
-
-	On surface.attach requests to the pointer surface, hotspot_x and
-	hotspot_y are decremented by the x and y parameters passed to the
-	request. Attach must be confirmed by wl_surface.commit as usual.
-
-	The hotspot can also be updated by passing the currently set pointer
-	surface to this request with new values for hotspot_x and hotspot_y.
-
-	The current and pending input regions of the wl_surface are cleared,
-	and wl_surface.set_input_region is ignored until the wl_surface is no
-	longer used as the cursor. When the use as a cursor ends, the current
-	and pending input regions become undefined, and the wl_surface is
-	unmapped.
-      </description>
-
-      <arg name="serial" type="uint" summary="serial of the enter event"/>
-      <arg name="surface" type="object" interface="wl_surface" allow-null="true"/>
-      <arg name="hotspot_x" type="int" summary="x coordinate in surface-relative coordinates"/>
-      <arg name="hotspot_y" type="int" summary="y coordinate in surface-relative coordinates"/>
-    </request>
   </interface>
 </protocol>
