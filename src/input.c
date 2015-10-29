@@ -2731,11 +2731,6 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 	wl_list_insert(&seat->tablet_manager_resource_list,
 		       wl_resource_get_link(resource));
 
-	/* TODO: Maybe get rid of this? This probably isn't needed for the
-	 * current implementation */
-	/* Notify the client of the wl_seat object we're associated with */
-	wl_tablet_manager_send_seat(resource, seat_resource);
-
 	/* Notify the client of all tablets currently connected to the system */
 	wl_list_for_each(tablet, &seat->tablet_list, link) {
 		struct wl_resource *tablet_resource =
