@@ -469,11 +469,36 @@ default_grab_tablet_proximity_out(struct weston_tablet_grab *grab,
 	weston_tablet_set_focus(grab->tablet, NULL, time);
 }
 
+/* TODO XXX TODO XXX TODO XXX
+ * Note to whot: we might be able to do this loop of finding the tool resource
+ * for each client a bit more nicely so we don't have to loop through the tool's
+ * resource list so often, up for you to decide
+ */
+
+/* Finds the appropriate wl_tablet_tool resource for the client owning a
+ * tablet's wl_resource
+ */
+static inline struct wl_resource *
+weston_tablet_tool_find_resource(struct weston_tablet_tool *tablet_tool,
+				 struct wl_resource *tablet_resource)
+{
+	struct wl_client *client;
+	struct wl_resource *tool_resource;
+
+	client = wl_resource_get_client(tablet_resource);
+	tool_resource = wl_resource_find_for_client(&tablet_tool->resource_list,
+						    client);
+
+	return tool_resource;
+}
+
+
 static void
 default_grab_tablet_motion(struct weston_tablet_grab *grab,
 			   uint32_t time, wl_fixed_t x, wl_fixed_t y)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct weston_view *current_view;
 	wl_fixed_t sx, sy;
 	struct wl_resource *resource;
@@ -491,8 +516,12 @@ default_grab_tablet_motion(struct weston_tablet_grab *grab,
 		weston_view_from_global_fixed(tablet->focus, x, y, &sx, &sy);
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_motion(resource, time, sx, sy);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_motion(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    time, sx, sy);
+		}
 	}
 }
 
@@ -501,12 +530,17 @@ default_grab_tablet_pressure(struct weston_tablet_grab *grab,
 			     uint32_t time, wl_fixed_t pressure)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_pressure(resource, time, pressure);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_pressure(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    time, pressure);
+		}
 	}
 }
 
@@ -515,12 +549,17 @@ default_grab_tablet_distance(struct weston_tablet_grab *grab,
 			     uint32_t time, wl_fixed_t distance)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_distance(resource, time, distance);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_distance(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    time, distance);
+		}
 	}
 }
 
@@ -529,12 +568,17 @@ default_grab_tablet_tilt(struct weston_tablet_grab *grab,
 			 uint32_t time, wl_fixed_t tilt_x, wl_fixed_t tilt_y)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_tilt(resource, time, tilt_x, tilt_y);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_tilt(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    time, tilt_x, tilt_y);
+		}
 	}
 }
 
@@ -542,13 +586,17 @@ static void
 default_grab_tablet_down(struct weston_tablet_grab *grab, uint32_t time)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_down(resource, tablet->grab_serial,
-					    time);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_down(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    tablet->grab_serial, time);
+		}
 	}
 }
 
@@ -556,28 +604,37 @@ static void
 default_grab_tablet_up(struct weston_tablet_grab *grab, uint32_t time)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_up(resource, time);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_up(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    tablet->grab_serial);
+		}
 	}
 }
 
 static void
 default_grab_tablet_button(struct weston_tablet_grab *grab,
 			   uint32_t time, uint32_t button,
-			   enum wl_tablet_button_state state)
+			   enum wl_tablet_tool_button_state state)
 {
 	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_button(resource, tablet->grab_serial,
-					      time, button, state);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_down(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource),
+			    tablet->grab_serial, time);
+		}
 	}
 
 	if (tablet->button_count == 0) {
@@ -597,12 +654,17 @@ default_grab_tablet_button(struct weston_tablet_grab *grab,
 static void
 default_grab_tablet_frame(struct weston_tablet_grab *grab)
 {
+	struct weston_tablet *tablet = grab->tablet;
+	struct weston_tablet_tool *tablet_tool = tablet->current_tool;
 	struct wl_resource *resource;
 	struct wl_list *resource_list = &grab->tablet->focus_resource_list;
 
 	if (!wl_list_empty(resource_list)) {
-		wl_resource_for_each(resource, resource_list)
-			wl_tablet_send_frame(resource);
+		wl_resource_for_each(resource, resource_list) {
+			wl_tablet_tool_send_frame(
+			    weston_tablet_tool_find_resource(tablet_tool,
+							     resource));
+		}
 	}
 }
 
@@ -832,24 +894,22 @@ weston_tablet_create(void)
 }
 
 static void
-tablet_unmap_sprite(struct weston_tablet *tablet)
+tablet_tool_unmap_sprite(struct weston_tablet_tool *tablet_tool)
 {
-	if (weston_surface_is_mapped(tablet->sprite->surface))
-		weston_surface_unmap(tablet->sprite->surface);
+	if (weston_surface_is_mapped(tablet_tool->sprite->surface))
+		weston_surface_unmap(tablet_tool->sprite->surface);
 
-	wl_list_remove(&tablet->sprite_destroy_listener.link);
-	tablet->sprite->surface->configure = NULL;
-	tablet->sprite->surface->configure_private = NULL;
-	weston_view_destroy(tablet->sprite);
-	tablet->sprite = NULL;
+	wl_list_remove(&tablet_tool->sprite_destroy_listener.link);
+	tablet_tool->sprite->surface->configure = NULL;
+	tablet_tool->sprite->surface->configure_private = NULL;
+	weston_view_destroy(tablet_tool->sprite);
+	tablet_tool->sprite = NULL;
 }
 
+/* TODO: Handle destruction of all of the tools and their sprites if needed */
 WL_EXPORT void
 weston_tablet_destroy(struct weston_tablet *tablet)
 {
-	if (tablet->sprite)
-		tablet_unmap_sprite(tablet);
-
 	free(tablet->name);
 
 	wl_list_remove(&tablet->focus_view_listener.link);
@@ -868,7 +928,7 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 			uint32_t time)
 {
 	struct wl_list *focus_resource_list;
-	struct wl_resource *resource;
+	struct wl_resource *resource, *tool_resource;
 	struct weston_seat *seat = tablet->seat;
 	struct weston_tablet_tool *tool = tablet->current_tool;
 
@@ -876,11 +936,14 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 
 	if (tablet->focus && !wl_list_empty(focus_resource_list)) {
 		wl_resource_for_each(resource, focus_resource_list) {
-			if (tablet->tool_contact_status == WESTON_TOOL_DOWN)
-				wl_tablet_send_up(resource, time);
+			tool_resource = weston_tablet_tool_find_resource(
+			    tool, resource);
 
-			wl_tablet_send_proximity_out(resource, time);
-			wl_tablet_send_frame(resource);
+			if (tablet->tool_contact_status == WESTON_TOOL_DOWN)
+				wl_tablet_tool_send_up(resource, time);
+
+			wl_tablet_tool_send_proximity_out(resource, time);
+			wl_tablet_tool_send_frame(resource);
 		}
 
 		move_resources(&tablet->resource_list, focus_resource_list);
@@ -904,6 +967,7 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 
 			tool_resource = wl_resource_find_for_client(
 			    &tool->resource_list, surface_client);
+
 			if (!tool_resource) {
 				tool_resource = wl_resource_create(
 				    surface_client, &wl_tablet_tool_interface,
@@ -917,21 +981,19 @@ weston_tablet_set_focus(struct weston_tablet *tablet, struct weston_view *view,
 				    &tool->resource_list,
 				    wl_resource_get_link(tool_resource));
 
-				wl_tablet_manager_send_tool_added(
+				wl_tablet_seat_send_tool_added(
 				    wl_resource_find_for_client(
 					&seat->tablet_manager_resource_list,
 					surface_client),
-				    tool_resource, resource, tool->type,
-				    tool->serial, tool->axis_caps);
+				    tool_resource);
 			}
 
-			wl_tablet_send_proximity_in(resource,
-						    tablet->focus_serial,
-						    time, tool_resource,
-						    view->surface->resource);
+			wl_tablet_tool_send_proximity_in(
+			    tool_resource, tablet->focus_serial, time,
+			    tool_resource, view->surface->resource);
 		}
-	} else if (tablet->sprite)
-		tablet_unmap_sprite(tablet);
+	} else if (tool->sprite)
+		tablet_tool_unmap_sprite(tool);
 
 	wl_list_remove(&tablet->focus_view_listener.link);
 	wl_list_init(&tablet->focus_view_listener.link);
@@ -974,6 +1036,7 @@ WL_EXPORT void
 weston_tablet_cursor_move(struct weston_tablet *tablet, wl_fixed_t x,
 			  wl_fixed_t y)
 {
+	struct weston_tablet_tool *tool = tablet->current_tool;
 	int32_t ix, iy;
 
 	weston_tablet_clamp(tablet, &x, &y);
@@ -984,11 +1047,11 @@ weston_tablet_cursor_move(struct weston_tablet *tablet, wl_fixed_t x,
 	ix = wl_fixed_to_int(x);
 	iy = wl_fixed_to_int(y);
 
-	if (tablet->sprite) {
-		weston_view_set_position(tablet->sprite,
-					 ix - tablet->hotspot_x,
-					 iy - tablet->hotspot_y);
-		weston_view_schedule_repaint(tablet->sprite);
+	if (tool->sprite) {
+		weston_view_set_position(tool->sprite,
+					 ix - tool->hotspot_x,
+					 iy - tool->hotspot_y);
+		weston_view_schedule_repaint(tool->sprite);
 	}
 }
 
@@ -1234,7 +1297,8 @@ weston_touch_cancel_grab(struct weston_touch *touch)
 }
 
 WL_EXPORT void
-weston_tablet_start_grab(struct weston_tablet *tablet, struct weston_tablet_grab *grab)
+weston_tablet_start_grab(struct weston_tablet *tablet,
+			 struct weston_tablet_grab *grab)
 {
 	tablet->grab = grab;
 	grab->tablet = tablet;
@@ -2047,11 +2111,15 @@ notify_tablet_added(struct weston_tablet *tablet)
 					       unbind_resource);
 
 		wl_resource_set_user_data(tablet_resource, tablet);
-		wl_tablet_manager_send_device_added(resource, tablet_resource,
-						    tablet->name, tablet->vid,
-						    tablet->pid, 0);
+		/* TODO: Set this to the tablet seat, do not leave this be!!! */
+		wl_tablet_seat_send_tablet_added(resource, tablet_resource);
 	}
 }
+
+/* XXX: I don't think I'm going to be changing the grabs to be per tool. To
+ * report all of the events through the tool itself, we just have the default
+ * grabs look up the client's respective tool for the event, and just send the
+ * motion event through that. Feel free to change this if you want */
 
 WL_EXPORT void
 notify_tablet_proximity_in(struct weston_tablet *tablet,
@@ -2119,12 +2187,12 @@ notify_tablet_frame(struct weston_tablet *tablet)
 
 WL_EXPORT void
 notify_tablet_button(struct weston_tablet *tablet, uint32_t time,
-		     uint32_t button, enum wl_tablet_button_state state)
+		     uint32_t button, enum wl_tablet_tool_button_state state)
 {
 	struct weston_tablet_grab *grab = tablet->grab;
 	struct weston_compositor *compositor = tablet->seat->compositor;
 
-	if (state == WL_TABLET_BUTTON_STATE_PRESSED) {
+	if (state == WL_TABLET_TOOL_BUTTON_STATE_PRESSED) {
 		tablet->button_count++;
 		if (tablet->button_count == 1)
 			weston_compositor_idle_inhibit(compositor);
@@ -2156,7 +2224,7 @@ notify_tablet_down(struct weston_tablet *tablet, uint32_t time)
 	tablet->button_count++;
 
 	weston_compositor_run_tablet_binding(compositor, tablet, BTN_TOUCH,
-					     WL_TABLET_BUTTON_STATE_PRESSED);
+					     WL_TABLET_TOOL_BUTTON_STATE_PRESSED);
 
 	grab->interface->down(grab, time);
 }
@@ -2494,6 +2562,8 @@ static const struct wl_seat_interface seat_interface = {
 	seat_get_touch,
 };
 
+/* TODO: Get rid of the cursor for the tablet if the resource is owned by the
+ * surface that currently has a cursor set */
 static void unbind_tablet_tool_resource(struct wl_resource *resource)
 {
 	struct weston_tablet_tool *tool = wl_resource_get_user_data(resource);
@@ -2508,41 +2578,33 @@ static void unbind_tablet_tool_resource(struct wl_resource *resource)
 	}
 }
 
+/* TODO: We have to get rid of the cursor and stuff here */
 static void
 tablet_tool_release(struct wl_client *client, struct wl_resource *resource)
 {
 	wl_resource_destroy(resource);
 }
 
-static const struct wl_tablet_tool_interface tablet_tool_interface = {
-	tablet_tool_release,
-};
-
 static void
-tablet_release(struct wl_client *client, struct wl_resource *resource)
+tablet_tool_cursor_surface_configure(struct weston_surface *es,
+				     int32_t dx, int32_t dy)
 {
-	wl_resource_destroy(resource);
-}
-
-static void
-tablet_cursor_surface_configure(struct weston_surface *es,
-				int32_t dx, int32_t dy)
-{
-	struct weston_tablet *tablet = es->configure_private;
+	struct weston_tablet_tool *tablet_tool = es->configure_private;
+	struct weston_tablet *tablet = tablet_tool->current_tablet;
 	int x, y;
 
 	if (es->width == 0)
 		return;
 
-	assert(es == tablet->sprite->surface);
+	assert(es == tablet_tool->sprite->surface);
 
-	tablet->hotspot_x -= dx;
-	tablet->hotspot_y -= dy;
+	tablet_tool->hotspot_x -= dx;
+	tablet_tool->hotspot_y -= dy;
 
-	x = wl_fixed_to_int(tablet->x) - tablet->hotspot_x;
-	y = wl_fixed_to_int(tablet->y) - tablet->hotspot_y;
+	x = wl_fixed_to_int(tablet->x) - tablet_tool->hotspot_x;
+	y = wl_fixed_to_int(tablet->y) - tablet_tool->hotspot_y;
 
-	weston_view_set_position(tablet->sprite, x, y);
+	weston_view_set_position(tablet_tool->sprite, x, y);
 
 	empty_region(&es->pending.input);
 	empty_region(&es->input);
@@ -2550,17 +2612,23 @@ tablet_cursor_surface_configure(struct weston_surface *es,
 	if (!weston_surface_is_mapped(es)) {
 		weston_layer_entry_insert(
 		    &es->compositor->cursor_layer.view_list,
-		    &tablet->sprite->layer_link);
-		weston_view_update_transform(tablet->sprite);
+		    &tablet_tool->sprite->layer_link);
+		weston_view_update_transform(tablet_tool->sprite);
 	}
 }
 
 static void
-tablet_set_cursor(struct wl_client *client, struct wl_resource *resource,
-		  uint32_t serial, struct wl_resource *surface_resource,
-		  int32_t x, int32_t y)
+tablet_tool_set_cursor(struct wl_client *client, struct wl_resource *resource,
+		       uint32_t serial, struct wl_resource *surface_resource,
+		       int32_t x, int32_t y,
+		       struct wl_resource *tablet_resource)
 {
-	struct weston_tablet *tablet = wl_resource_get_user_data(resource);
+	struct weston_tablet_tool *tablet_tool =
+		wl_resource_get_user_data(resource);
+	struct weston_tablet *tablet = tablet_tool->current_tablet;
+	// TODO: Do something with this
+	struct weston_tablet *tablet_prox =
+		wl_resource_get_user_data(tablet_resource);
 	struct weston_surface *surface = NULL;
 
 	if (surface_resource)
@@ -2578,7 +2646,8 @@ tablet_set_cursor(struct wl_client *client, struct wl_resource *resource,
 	if (tablet->focus_serial - serial > UINT32_MAX / 2)
 		return;
 
-	if (surface && tablet->sprite && surface != tablet->sprite->surface) {
+	if (surface && tablet_tool->sprite &&
+	    surface != tablet_tool->sprite->surface) {
 		if (surface->configure) {
 			wl_resource_post_error(surface->resource,
 					       WL_DISPLAY_ERROR_INVALID_OBJECT,
@@ -2588,28 +2657,37 @@ tablet_set_cursor(struct wl_client *client, struct wl_resource *resource,
 		}
 	}
 
-	if (tablet->sprite)
-		tablet_unmap_sprite(tablet);
+	if (tablet_tool->sprite)
+		tablet_tool_unmap_sprite(tablet_tool);
 
 	if (!surface)
 		return;
 
 	wl_signal_add(&surface->destroy_signal,
-		      &tablet->sprite_destroy_listener);
+		      &tablet_tool->sprite_destroy_listener);
 
-	surface->configure = tablet_cursor_surface_configure;
-	surface->configure_private = tablet;
-	tablet->sprite = weston_view_create(surface);
-	tablet->hotspot_x = x;
-	tablet->hotspot_y = y;
+	surface->configure = tablet_tool_cursor_surface_configure;
+	surface->configure_private = tablet_tool;
+	tablet_tool->sprite = weston_view_create(surface);
+	tablet_tool->hotspot_x = x;
+	tablet_tool->hotspot_y = y;
 
 	if (surface->buffer_ref.buffer)
-		tablet_cursor_surface_configure(surface, 0, 0);
+		tablet_tool_cursor_surface_configure(surface, 0, 0);
+}
+
+static const struct wl_tablet_tool_interface tablet_tool_interface = {
+	tablet_tool_set_cursor,
+};
+
+static void
+tablet_release(struct wl_client *client, struct wl_resource *resource)
+{
+	wl_resource_destroy(resource);
 }
 
 static const struct wl_tablet_interface tablet_interface = {
 	tablet_release,
-	tablet_set_cursor,
 };
 
 static void
@@ -2653,6 +2731,8 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 	wl_list_insert(&seat->tablet_manager_resource_list,
 		       wl_resource_get_link(resource));
 
+	/* TODO: Maybe get rid of this? This probably isn't needed for the
+	 * current implementation */
 	/* Notify the client of the wl_seat object we're associated with */
 	wl_tablet_manager_send_seat(resource, seat_resource);
 
@@ -2669,9 +2749,8 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 		wl_list_insert(&tablet->resource_list,
 			       wl_resource_get_link(tablet_resource));
 
-		wl_tablet_manager_send_device_added(resource, tablet_resource,
-						    tablet->name, tablet->vid,
-						    tablet->pid, 0);
+		/* TODO: Set this to the tablet seat, do not leave this be!!! */
+		wl_tablet_seat_send_tablet_added(resource, tablet_resource);
 	}
 }
 

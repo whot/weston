@@ -337,7 +337,7 @@ struct weston_tablet_grab_interface {
 	void (*button)(struct weston_tablet_grab *grab,
 		       uint32_t time,
 		       uint32_t button,
-		       enum wl_tablet_button_state state);
+		       enum wl_tablet_tool_button_state state);
 	void (*frame)(struct weston_tablet_grab *grab);
 	void (*cancel)(struct weston_tablet_grab *grab);
 };
@@ -418,9 +418,16 @@ struct weston_touch {
 };
 
 struct weston_tablet_tool {
+	struct weston_tablet *current_tablet;
+
 	enum wl_tablet_tool_type type;
 	uint32_t serial;
-	enum wl_tablet_tool_axis_flag axis_caps;
+	//enum wl_tablet_tool_axis_flag axis_caps; TODO
+
+	int32_t hotspot_x, hotspot_y;
+
+	struct weston_view *sprite;
+	struct wl_listener sprite_destroy_listener;
 
 	struct wl_signal destroy_signal;
 
@@ -445,7 +452,6 @@ struct weston_tablet {
 
 	struct weston_tablet_tool *current_tool;
 
-	int32_t hotspot_x, hotspot_y;
 	wl_fixed_t x, y;
 	wl_fixed_t sx, sy;
 
@@ -455,9 +461,6 @@ struct weston_tablet {
 	} tool_contact_status;
 	int button_count;
 
-	struct weston_view *sprite;
-	struct wl_listener sprite_destroy_listener;
-
 	struct weston_tablet_grab *grab;
 	struct weston_tablet_grab default_grab;
 	wl_fixed_t grab_x, grab_y;
@@ -465,7 +468,7 @@ struct weston_tablet {
 	struct wl_list link;
 
 	char *name;
-	enum wl_tablet_manager_tablet_type type;
+	enum wl_tablet_tablet_type type;
 	uint32_t vid;
 	uint32_t pid;
 	struct weston_output *output;
@@ -1285,7 +1288,7 @@ notify_tablet_tilt(struct weston_tablet *tablet, uint32_t time,
 		   wl_fixed_t tilt_x, wl_fixed_t tilt_y);
 void
 notify_tablet_button(struct weston_tablet *tablet, uint32_t time,
-		     uint32_t button, enum wl_tablet_button_state state);
+		     uint32_t button, enum wl_tablet_tool_button_state state);
 void
 notify_tablet_down(struct weston_tablet *tablet, uint32_t time);
 void
@@ -1448,7 +1451,7 @@ void
 weston_compositor_run_tablet_binding(struct weston_compositor *compositor,
 				     struct weston_tablet *tablet,
 				     uint32_t button,
-				     enum wl_tablet_button_state state);
+				     enum wl_tablet_tool_button_state state);
 int
 weston_compositor_run_axis_binding(struct weston_compositor *compositor,
 				   struct weston_pointer *pointer, uint32_t time,
