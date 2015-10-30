@@ -422,7 +422,7 @@ struct weston_tablet_tool {
 
 	enum wl_tablet_tool_type type;
 	uint32_t serial;
-	//enum wl_tablet_tool_axis_flag axis_caps; TODO
+	uint32_t axis_caps;
 
 	int32_t hotspot_x, hotspot_y;
 

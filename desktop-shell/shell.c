@@ -1933,7 +1933,7 @@ tablet_noop_grab_tilt(struct weston_tablet_grab *grab, uint32_t time,
 
 static void tablet_noop_grab_button(struct weston_tablet_grab *grab,
 				    uint32_t time, uint32_t button,
-				    enum wl_tablet_button_state state)
+				    enum wl_tablet_tool_button_state state)
 {
 }
 

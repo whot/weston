@@ -149,7 +149,7 @@ struct tablet_tool {
 
 	enum wl_tablet_tool_type type;
 	uint32_t serial;
-	enum wl_tablet_tool_axis_flag axis_caps;
+	uint32_t axis_caps;
 
 	void *user_data;
 
@@ -178,7 +178,7 @@ struct tablet {
 	char *name;
 	int32_t vid;
 	int32_t pid;
-	enum wl_tablet_manager_tablet_type type;
+	enum wl_tablet_tablet_type type;
 
 	void *user_data;
 
@@ -2855,7 +2855,7 @@ tablet_tool_unref(struct tablet_tool *tool)
 	tool->refcount--;
 	if (tool->refcount == 0) {
 		wl_list_remove(&tool->link);
-		wl_tablet_tool_release(tool->wl_tablet_tool);
+		/* FIXME wl_tablet_tool_release(tool->wl_tablet_tool); */
 		free(tool);
 	}
 }
@@ -3497,9 +3497,13 @@ tablet_set_cursor_image_index(struct tablet *tablet, int index)
 	wl_surface_damage(tablet->cursor_surface, 0, 0, image->width,
 			  image->height);
 	wl_surface_commit(tablet->cursor_surface);
+
+	/* FIXME this is a per-tool function now */
+#if 0
 	wl_tablet_set_cursor(tablet->tablet, tablet->enter_serial,
 			     tablet->cursor_surface, image->hotspot_x,
 			     image->hotspot_y);
+#endif
 }
 
 static const struct wl_callback_listener tablet_cursor_surface_listener;
@@ -3518,11 +3522,14 @@ tablet_surface_frame_callback(void *data, struct wl_callback *callback,
 		tablet->cursor_frame_cb = NULL;
 	}
 
+	/* FIXME: this is a tool function now */
+#if 0
 	if (tablet->current_cursor == CURSOR_BLANK) {
 		wl_tablet_set_cursor(tablet->tablet, tablet->enter_serial, NULL,
 				     0, 0);
 		return;
 	}
+#endif
 
 	if (tablet->current_cursor == CURSOR_UNSET)
 		return;
@@ -3730,7 +3737,9 @@ tablet_handle_removed(void *data, struct wl_tablet *wl_tablet)
 	wl_list_for_each_safe(tool, tmp, &input->tablet_tool_list, link)
 		tablet_tool_unref(tool);
 
+	/* FIXME
 	wl_tablet_release(wl_tablet);
+	*/
 }
 
 static void
@@ -3775,7 +3784,7 @@ tablet_handle_button(void *data, struct wl_tablet *wl_tablet, uint32_t serial,
 		focus->tablet_button_handler(focus, tablet, button, state, time,
 					     focus->user_data);
 
-	if (state == WL_TABLET_BUTTON_STATE_PRESSED)
+	if (state == WL_TABLET_TOOL_BUTTON_STATE_PRESSED)
 		tablet->button_count++;
 	else if (--tablet->button_count == 0)
 		tablet_update_focus_widget(tablet, time);
@@ -3809,6 +3818,8 @@ tablet_handle_up(void *data, struct wl_tablet *wl_tablet, uint32_t time)
 }
 
 static const struct wl_tablet_listener tablet_listener = {
+/* FIXME */
+#if 0
 	tablet_handle_proximity_in,
 	tablet_handle_proximity_out,
 	tablet_handle_motion,
@@ -3820,6 +3831,7 @@ static const struct wl_tablet_listener tablet_listener = {
 	tablet_handle_button,
 	tablet_handle_frame,
 	tablet_handle_removed,
+#endif
 };
 
 static void
@@ -3883,11 +3895,13 @@ tablet_manager_handle_seat(void *data,
 	wl_tablet_manager_set_user_data(wl_tablet_manager, input);
 }
 
+/* FIXME 
 static const struct wl_tablet_manager_listener tablet_manager_listener = {
 	tablet_manager_handle_device_added,
 	tablet_manager_handle_tool_added,
 	tablet_manager_handle_seat,
 };
+*/
 
 static void
 seat_handle_capabilities(void *data, struct wl_seat *seat,
@@ -6041,12 +6055,6 @@ registry_handle_global(void *data, struct wl_registry *registry, uint32_t id,
 		struct wl_tablet_manager *tablet_manager =
 			wl_registry_bind(registry, id,
 					 &wl_tablet_manager_interface, 1);
-
-		/* We can't do anything more with this tablet manager until we
-		 * get the seat it's associated with */
-		wl_tablet_manager_add_listener(tablet_manager,
-					       &tablet_manager_listener,
-					       NULL);
 	} else if (strcmp(interface, "xdg_shell") == 0) {
 		d->xdg_shell = wl_registry_bind(registry, id,
 						&xdg_shell_interface, 1);

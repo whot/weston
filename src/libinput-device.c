@@ -470,15 +470,15 @@ handle_tablet_button(struct libinput_device *libinput_device,
 		libinput_device_get_user_data(libinput_device);
 	struct weston_tablet *tablet = device->tablet;
 	uint32_t button, time;
-	enum wl_tablet_button_state state;
+	enum wl_tablet_tool_button_state state;
 
 	time = libinput_event_tablet_get_time(button_event);
 	button = libinput_event_tablet_get_button(button_event);
-	state = (enum wl_tablet_button_state)
+	state = (enum wl_tablet_tool_button_state)
 		libinput_event_tablet_get_button_state(button_event);
 
 	if (button == BTN_TOUCH) {
-		if (state == WL_TABLET_BUTTON_STATE_PRESSED)
+		if (state == WL_TABLET_TOOL_BUTTON_STATE_PRESSED)
 			notify_tablet_down(tablet, time);
 		else
 			notify_tablet_up(tablet, time);
@@ -726,9 +726,10 @@ tablet_bind_output(struct weston_tablet *tablet, struct weston_output *output)
 
 	/* TODO: Properly bind tablets with built-in displays */
 	switch (tablet->type) {
-		case WL_TABLET_MANAGER_TABLET_TYPE_EXTERNAL:
-		case WL_TABLET_MANAGER_TABLET_TYPE_INTERNAL:
-		case WL_TABLET_MANAGER_TABLET_TYPE_DISPLAY:
+		/* FIXME: needs protocol changes */
+		case WL_TABLET_TABLET_TYPE_EXTERNAL:
+		case WL_TABLET_TABLET_TYPE_INTERNAL:
+		case WL_TABLET_TABLET_TYPE_DISPLAY:
 			if (output)
 				tablet->output = output;
 			else {
@@ -801,6 +802,7 @@ evdev_device_create(struct libinput_device *libinput_device,
 	}
 	if (libinput_device_has_capability(libinput_device,
 					   LIBINPUT_DEVICE_CAP_TABLET)) {
+		/* FIXME: Need a tablet manager seat init here */
 		struct weston_tablet *tablet = weston_seat_add_tablet(seat);
 
 		tablet->name = strdup(libinput_device_get_name(libinput_device));

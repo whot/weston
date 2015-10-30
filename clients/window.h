@@ -301,7 +301,7 @@ typedef void (*widget_tablet_proximity_out_handler_t)(struct widget *widget,
 typedef void (*widget_tablet_button_handler_t)(struct widget *widget,
 					       struct tablet *tablet,
 					       uint32_t button,
-					       enum wl_tablet_button_state state,
+					       enum wl_tablet_tool_button_state state,
 					       uint32_t time,
 					       void *data);
 typedef void (*widget_tablet_down_handler_t)(struct widget *widget,

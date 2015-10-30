@@ -368,14 +368,14 @@ panel_launcher_tablet_up_handler(struct widget *widget, struct tablet *tablet,
 static void
 panel_launcher_tablet_button_handler(struct widget *widget,
 				     struct tablet *tablet, uint32_t button,
-				     enum wl_tablet_button_state state,
+				     enum wl_tablet_tool_button_state state,
 				     uint32_t time, void *data)
 {
 	struct panel_launcher *launcher;
 
 	launcher = widget_get_user_data(widget);
 
-	if (state == WL_TABLET_BUTTON_STATE_RELEASED)
+	if (state == WL_TABLET_TOOL_BUTTON_STATE_RELEASED)
 		panel_launcher_activate(launcher);
 }
 

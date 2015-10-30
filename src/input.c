@@ -2731,6 +2731,7 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 	wl_list_insert(&seat->tablet_manager_resource_list,
 		       wl_resource_get_link(resource));
 
+#if 0
 	/* Notify the client of all tablets currently connected to the system */
 	wl_list_for_each(tablet, &seat->tablet_list, link) {
 		struct wl_resource *tablet_resource =
@@ -2747,6 +2748,7 @@ bind_tablet_manager(struct wl_client *client, void *data, uint32_t version,
 		/* TODO: Set this to the tablet seat, do not leave this be!!! */
 		wl_tablet_seat_send_tablet_added(resource, tablet_resource);
 	}
+#endif
 }
 
 #ifdef ENABLE_XKBCOMMON
@@ -3179,9 +3181,15 @@ weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 
 	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 4,
 					seat, bind_seat);
+	/* FIXME: this one isn't supposed to be here, there's only one.
+	problem: do we advertise a tablet manager even if there is no tablet
+	connected?
+	 */
+#if 0
 	seat->tablet_manager = wl_global_create(ec->wl_display,
 						&wl_tablet_manager_interface,
 						1, seat, bind_tablet_manager);
+#endif
 
 	seat->compositor = ec;
 	seat->modifier_state = 0;

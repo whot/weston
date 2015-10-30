@@ -409,11 +409,11 @@ WL_EXPORT void
 weston_compositor_run_tablet_binding(struct weston_compositor *compositor,
 				     struct weston_tablet *tablet,
 				     uint32_t button,
-				     enum wl_tablet_button_state state)
+				     enum wl_tablet_tool_button_state state)
 {
 	struct weston_binding *b;
 
-	if (state != WL_TABLET_BUTTON_STATE_PRESSED)
+	if (state != WL_TABLET_TOOL_BUTTON_STATE_PRESSED)
 		return;
 
 	wl_list_for_each(b, &compositor->tablet_binding_list, link) {
