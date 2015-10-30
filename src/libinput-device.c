@@ -430,15 +430,15 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 		/* Copy over the tool capabilities from libinput */
 		if (libinput_tool_has_axis(libinput_tool,
 					   LIBINPUT_TABLET_AXIS_PRESSURE))
-			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_PRESSURE;
+			tool->axis_caps |= 1 << WL_TABLET_TOOL_CAPABILITY_PRESSURE;
 		if (libinput_tool_has_axis(libinput_tool,
 					   LIBINPUT_TABLET_AXIS_DISTANCE))
-			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_DISTANCE;
+			tool->axis_caps |= 1 << WL_TABLET_TOOL_CAPABILITY_DISTANCE;
 		if (libinput_tool_has_axis(libinput_tool,
 					   LIBINPUT_TABLET_AXIS_TILT_X) &&
 		    libinput_tool_has_axis(libinput_tool,
 					   LIBINPUT_TABLET_AXIS_TILT_Y))
-			tool->axis_caps |= WL_TABLET_TOOL_AXIS_FLAG_TILT;
+			tool->axis_caps |= WL_TABLET_TOOL_CAPABILITY_TILT;
 
 		tool->type = libinput_tool_get_type(libinput_tool);
 		tool->serial = libinput_tool_get_serial(libinput_tool);
