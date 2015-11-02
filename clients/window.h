@@ -28,6 +28,7 @@
 
 #include <xkbcommon/xkbcommon.h>
 #include <wayland-client.h>
+#include <tablet-unstable-v1-client-protocol.h>
 #include <cairo.h>
 #include "shared/config-parser.h"
 #include "shared/zalloc.h"
@@ -38,6 +39,8 @@ struct widget;
 struct display;
 struct input;
 struct output;
+struct tablet;
+struct tablet_tool;
 
 struct task {
 	void (*run)(struct task *task, uint32_t events);
@@ -266,6 +269,44 @@ typedef void (*widget_axis_handler_t)(struct widget *widget,
 				      uint32_t axis,
 				      wl_fixed_t value,
 				      void *data);
+typedef void (*widget_tablet_tool_motion_handler_t)(struct widget *widget,
+						    struct tablet_tool *tool,
+						    float x, float y,
+						    void *data);
+typedef void (*widget_tablet_tool_down_handler_t)(struct widget *widget,
+						  struct tablet_tool *tool,
+						  void *data);
+typedef void (*widget_tablet_tool_up_handler_t)(struct widget *widget,
+						struct tablet_tool *tool,
+						void *data);
+typedef void (*widget_tablet_tool_pressure_handler_t)(struct widget *widget,
+						      struct tablet_tool *tool,
+						      uint32_t pressure,
+						      void *data);
+typedef void (*widget_tablet_tool_distance_handler_t)(struct widget *widget,
+						      struct tablet_tool *tool,
+						      uint32_t distance,
+						      void *data);
+typedef void (*widget_tablet_tool_tilt_handler_t)(struct widget *widget,
+						  struct tablet_tool *tool,
+						  int32_t tilt_x, int32_t tilt_y,
+						  void *data);
+typedef void (*widget_tablet_tool_proximity_in_handler_t)(struct widget *widget,
+							  struct tablet_tool *tool,
+							  struct tablet *tablet,
+							  void *data);
+typedef void (*widget_tablet_tool_proximity_out_handler_t)(struct widget *widget,
+							   struct tablet_tool *tool,
+							   void *data);
+typedef void (*widget_tablet_tool_button_handler_t)(struct widget *widget,
+						    struct tablet_tool *tool,
+						    uint32_t button,
+						    enum zwp_tablet_tool1_button_state state,
+						    void *data);
+typedef void (*widget_tablet_tool_frame_handler_t)(struct widget *widget,
+						   struct tablet_tool *tool,
+						   uint32_t time,
+						   void *data);
 
 struct window *
 window_create(struct display *display);
@@ -520,6 +561,34 @@ void
 widget_set_axis_handler(struct widget *widget,
 			widget_axis_handler_t handler);
 void
+widget_set_tablet_tool_motion_handler(struct widget *widget,
+				      widget_tablet_tool_motion_handler_t handler);
+void
+widget_set_tablet_tool_up_handler(struct widget *widget,
+				  widget_tablet_tool_up_handler_t handler);
+void
+widget_set_tablet_tool_down_handler(struct widget *widget,
+				    widget_tablet_tool_down_handler_t handler);
+void
+widget_set_tablet_tool_pressure_handler(struct widget *widget,
+					widget_tablet_tool_pressure_handler_t handler);
+void
+widget_set_tablet_tool_distance_handler(struct widget *widget,
+					widget_tablet_tool_distance_handler_t handler);
+void
+widget_set_tablet_tool_tilt_handler(struct widget *widget,
+				    widget_tablet_tool_tilt_handler_t handler);
+void
+widget_set_tablet_tool_proximity_handlers(struct widget *widget,
+					  widget_tablet_tool_proximity_in_handler_t in_handler,
+					  widget_tablet_tool_proximity_out_handler_t out_handler);
+void
+widget_set_tablet_tool_button_handler(struct widget *widget,
+				      widget_tablet_tool_button_handler_t handler);
+void
+widget_set_tablet_tool_frame_handler(struct widget *widget,
+				     widget_tablet_tool_frame_handler_t handler);
+void
 widget_schedule_redraw(struct widget *widget);
 void
 widget_set_use_cairo(struct widget *widget, int use_cairo);
@@ -628,5 +697,14 @@ keysym_modifiers_add(struct wl_array *modifiers_map,
 xkb_mod_mask_t
 keysym_modifiers_get_mask(struct wl_array *modifiers_map,
 			  const char *name);
+
+enum zwp_tablet_tool1_type
+tablet_tool_get_type(struct tablet_tool *tool);
+
+uint64_t
+tablet_tool_get_serial(struct tablet_tool *tool);
+
+uint64_t
+tablet_tool_get_hwid(struct tablet_tool *tool);
 
 #endif
