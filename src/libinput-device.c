@@ -371,6 +371,110 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 	notify_tablet_tool_frame(tool, time);
 }
 
+static void
+handle_tablet_axis(struct libinput_device *libinput_device,
+		   struct libinput_event_tablet *axis_event)
+{
+	struct evdev_device *device =
+		libinput_device_get_user_data(libinput_device);
+	struct weston_tablet_tool *tool;
+	struct weston_tablet *tablet = device->tablet;
+	struct libinput_tool *libinput_tool;
+	uint32_t time;
+	const int NORMALIZED_AXIS_MAX = 65535;
+
+	libinput_tool = libinput_event_tablet_get_tool(axis_event);
+	tool = libinput_tool_get_user_data(libinput_tool);
+	time = libinput_event_tablet_get_time(axis_event);
+
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_X) ||
+	    libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_Y)) {
+		double x, y;
+		uint32_t width, height;
+
+		width = tablet->output->current_mode->width;
+		height = tablet->output->current_mode->height;
+		x = libinput_event_tablet_get_x_transformed(axis_event, width);
+		y = libinput_event_tablet_get_y_transformed(axis_event, height);
+
+		notify_tablet_tool_motion(tool, time,
+					  wl_fixed_from_double(x),
+					  wl_fixed_from_double(y));
+	}
+
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_PRESSURE)) {
+		double pressure;
+
+		pressure = libinput_event_tablet_get_axis_value(axis_event,
+						LIBINPUT_TABLET_AXIS_PRESSURE);
+		/* convert axis range [0.0, 1.0] to [0, 65535] */
+		pressure *= NORMALIZED_AXIS_MAX;
+		notify_tablet_tool_pressure(tool, time, pressure);
+	}
+
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_DISTANCE)) {
+		double distance;
+
+		distance = libinput_event_tablet_get_axis_value(axis_event,
+						LIBINPUT_TABLET_AXIS_PRESSURE);
+		/* convert axis range [0.0, 1.0] to [0, 65535] */
+		distance *= NORMALIZED_AXIS_MAX;
+		notify_tablet_tool_distance(tool, time, distance);
+	}
+
+	if (libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_TILT_X) ||
+	    libinput_event_tablet_axis_has_changed(axis_event,
+						   LIBINPUT_TABLET_AXIS_TILT_Y)) {
+		double tx, ty;
+
+		tx = libinput_event_tablet_get_axis_value(axis_event,
+						LIBINPUT_TABLET_AXIS_TILT_X);
+		ty = libinput_event_tablet_get_axis_value(axis_event,
+						LIBINPUT_TABLET_AXIS_TILT_Y);
+		/* convert axis range [-1.0, 1.0] to [-65535, 65535] */
+		tx *= NORMALIZED_AXIS_MAX;
+		ty *= NORMALIZED_AXIS_MAX;
+		notify_tablet_tool_tilt(tool, time, tx, ty);
+	}
+
+	notify_tablet_tool_frame(tool, time);
+}
+
+static void
+handle_tablet_button(struct libinput_device *libinput_device,
+		     struct libinput_event_tablet *button_event)
+{
+	struct weston_tablet_tool *tool;
+	struct libinput_tool *libinput_tool;
+	uint32_t time, button;
+	enum zwp_tablet_tool1_button_state state;
+
+	libinput_tool = libinput_event_tablet_get_tool(button_event);
+	tool = libinput_tool_get_user_data(libinput_tool);
+	time = libinput_event_tablet_get_time(button_event);
+	button = libinput_event_tablet_get_button(button_event);
+	if (libinput_event_tablet_get_button_state(button_event) ==
+	    LIBINPUT_BUTTON_STATE_PRESSED)
+		state = ZWP_TABLET_TOOL1_BUTTON_STATE_PRESSED;
+	else
+		state = ZWP_TABLET_TOOL1_BUTTON_STATE_RELEASED;
+
+	if (button == BTN_TOUCH) {
+		if (state == ZWP_TABLET_TOOL1_BUTTON_STATE_PRESSED)
+			notify_tablet_tool_down(tool, time);
+		else
+			notify_tablet_tool_up(tool, time);
+
+	} else {
+		notify_tablet_tool_button(tool, time, button, state);
+	}
+}
+
 int
 evdev_device_process_event(struct libinput_event *event)
 {
@@ -419,6 +523,14 @@ evdev_device_process_event(struct libinput_event *event)
 	case LIBINPUT_EVENT_TABLET_PROXIMITY:
 		handle_tablet_proximity(libinput_device,
 					libinput_event_get_tablet_event(event));
+		break;
+	case LIBINPUT_EVENT_TABLET_AXIS:
+		handle_tablet_axis(libinput_device,
+				   libinput_event_get_tablet_event(event));
+		break;
+	case LIBINPUT_EVENT_TABLET_BUTTON:
+		handle_tablet_button(libinput_device,
+				     libinput_event_get_tablet_event(event));
 		break;
 	default:
 		handled = 0;
