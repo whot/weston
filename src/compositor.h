@@ -438,6 +438,11 @@ struct weston_tablet_tool {
 	struct wl_listener sprite_destroy_listener;
 
 	wl_fixed_t x, y;
+
+	struct wl_signal focus_signal;
+	struct wl_signal removed_signal;
+
+	wl_fixed_t grab_x, grab_y;
 };
 
 struct weston_tablet {
@@ -659,6 +664,7 @@ struct weston_seat {
 	char *seat_name;
 
 	struct wl_list tablet_seat_resource_list;
+	struct wl_signal tablet_tool_added_signal;
 };
 
 enum {

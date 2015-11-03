@@ -751,6 +751,8 @@ weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
 						 &tool->focus_resource_listener);
 	tool->focus = view;
 	tool->focus_view_listener.notify = tablet_tool_focus_view_destroyed;
+
+	wl_signal_emit(&tool->focus_signal, tool);
 }
 
 WL_EXPORT void
@@ -988,6 +990,9 @@ weston_tablet_tool_create(void)
 	tool->default_grab.interface = &default_tablet_tool_grab_interface;
 	tool->default_grab.tool = tool;
 	tool->grab = &tool->default_grab;
+
+	wl_signal_init(&tool->focus_signal);
+	wl_signal_init(&tool->removed_signal);
 
 	return tool;
 }
@@ -2354,6 +2359,8 @@ notify_tablet_tool_down(struct weston_tablet_tool *tool,
 
 	 tool->tip_is_down = true;
 	 tool->grab_serial = wl_display_get_serial(compositor->wl_display);
+	 tool->grab_x = tool->x;
+	 tool->grab_y = tool->y;
 
 	 grab->interface->down(grab, time);
 }
@@ -3068,6 +3075,7 @@ weston_seat_release_tablet_tool(struct weston_tablet_tool *tool)
 {
 	/* FIXME: nothing is calling this function yet, tools are only
 	   released on shutdown when the seat goes away */
+	wl_signal_emit(&tool->removed_signal, tool);
 }
 
 WL_EXPORT void
@@ -3126,6 +3134,8 @@ weston_seat_add_tablet_tool(struct weston_seat *seat)
 	if (tool == NULL)
 		return NULL;
 
+	wl_signal_emit(&seat->tablet_tool_added_signal, tool);
+
 	wl_list_init(&tool->resource_list);
 	tool->seat = seat;
 
@@ -3159,6 +3169,7 @@ weston_seat_init(struct weston_seat *seat, struct weston_compositor *ec,
 	wl_list_init(&seat->tablet_seat_resource_list);
 	wl_list_init(&seat->tablet_list);
 	wl_list_init(&seat->tablet_tool_list);
+	wl_signal_init(&seat->tablet_tool_added_signal);
 
 	seat->global = wl_global_create(ec->wl_display, &wl_seat_interface, 4,
 					seat, bind_seat);
