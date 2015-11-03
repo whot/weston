@@ -318,6 +318,47 @@ struct weston_touch_grab {
 	struct weston_touch *touch;
 };
 
+struct weston_tablet;
+struct weston_tablet_tool;
+struct weston_tablet_tool_grab;
+struct weston_tablet_tool_grab_interface {
+	void (*proximity_in)(struct weston_tablet_tool_grab *grab,
+			     uint32_t time,
+			     struct weston_tablet *tablet);
+	void (*proximity_out)(struct weston_tablet_tool_grab *grab,
+			     uint32_t time);
+	void (*motion)(struct weston_tablet_tool_grab *grab,
+		       uint32_t time,
+		       wl_fixed_t x,
+		       wl_fixed_t y);
+	void (*down)(struct weston_tablet_tool_grab *grab,
+		     uint32_t time);
+	void (*up)(struct weston_tablet_tool_grab *grab,
+		   uint32_t time);
+	void (*pressure)(struct weston_tablet_tool_grab *grab,
+			 uint32_t time,
+			 uint32_t pressure);
+	void (*distance)(struct weston_tablet_tool_grab *grab,
+			 uint32_t time,
+			 uint32_t distance);
+	void (*tilt)(struct weston_tablet_tool_grab *grab,
+		     uint32_t time,
+		     int32_t tilt_x,
+		     int32_t tilt_y);
+	void (*button)(struct weston_tablet_tool_grab *grab,
+		       uint32_t time,
+		       uint32_t button,
+		       enum zwp_tablet_tool_v1_button_state state);
+	void (*frame)(struct weston_tablet_tool_grab *grab,
+		      uint32_t time);
+	void (*cancel)(struct weston_tablet_tool_grab *grab);
+};
+
+struct weston_tablet_tool_grab {
+	const struct weston_tablet_tool_grab_interface *interface;
+	struct weston_tablet_tool *tool;
+};
+
 struct weston_data_offer {
 	struct wl_resource *resource;
 	struct weston_data_source *source;
@@ -416,12 +457,19 @@ struct weston_tablet_tool {
 	struct wl_listener focus_view_listener;
 	struct wl_listener focus_resource_listener;
 	uint32_t focus_serial;
+	uint32_t grab_serial;
 
 	struct wl_list link;
 
 	uint64_t serial;
 	uint64_t hwid;
 	uint32_t capabilities;
+
+	struct weston_tablet_tool_grab *grab;
+	struct weston_tablet_tool_grab default_grab;
+
+	int button_count;
+	bool tip_is_down;
 };
 
 struct weston_tablet {
@@ -525,6 +573,11 @@ void
 weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
 			     struct weston_view *view,
 			     uint32_t time);
+void
+weston_tablet_tool_start_grab(struct weston_tablet_tool *tool,
+			      struct weston_tablet_tool_grab *grab);
+void
+weston_tablet_tool_end_grab(struct weston_tablet_tool *tool);
 
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
