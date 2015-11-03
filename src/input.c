@@ -702,6 +702,9 @@ weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
 	focus_resource_list = &tool->focus_resource_list;
 	if (tool->focus && !wl_list_empty(focus_resource_list)) {
 		wl_resource_for_each(resource, focus_resource_list) {
+			if (tool->tip_is_down)
+				zwp_tablet_tool1_send_up(resource);
+
 			zwp_tablet_tool1_send_proximity_out(resource);
 			zwp_tablet_tool1_send_frame(resource, time);
 		}
@@ -726,6 +729,11 @@ weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
 
 			zwp_tablet_tool1_send_proximity_in(resource, tool->focus_serial,
 							   tr, view->surface->resource);
+
+			if (tool->tip_is_down)
+				zwp_tablet_tool1_send_down(resource,
+							   tool->focus_serial);
+
 			zwp_tablet_tool1_send_frame(resource, time);
 		}
 	}
@@ -745,6 +753,186 @@ weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
 	tool->focus_view_listener.notify = tablet_tool_focus_view_destroyed;
 }
 
+WL_EXPORT void
+weston_tablet_tool_start_grab(struct weston_tablet_tool *tool,
+			      struct weston_tablet_tool_grab *grab)
+{
+	tool->grab = grab;
+	grab->tool = tool;
+}
+
+WL_EXPORT void
+weston_tablet_tool_end_grab(struct weston_tablet_tool *tool)
+{
+	tool->grab = &tool->default_grab;
+}
+
+static void
+default_grab_tablet_tool_proximity_in(struct weston_tablet_tool_grab *grab,
+				      uint32_t time,
+				      struct weston_tablet *tablet)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+
+	tool->current_tablet = tablet;
+}
+
+static void
+default_grab_tablet_tool_proximity_out(struct weston_tablet_tool_grab *grab,
+				       uint32_t time)
+{
+	weston_tablet_tool_set_focus(grab->tool, NULL, time);
+}
+
+static void
+default_grab_tablet_tool_motion(struct weston_tablet_tool_grab *grab,
+				uint32_t time,
+				wl_fixed_t x,
+				wl_fixed_t y)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct weston_view *current_view;
+	wl_fixed_t sx, sy;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	current_view = weston_compositor_pick_view(tool->seat->compositor,
+						   x, y, &sx, &sy);
+	if (current_view != tool->focus)
+		weston_tablet_tool_set_focus(tool, current_view, time);
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_motion(resource, sx, sy);
+	}
+}
+
+static void
+default_grab_tablet_tool_down(struct weston_tablet_tool_grab *grab,
+			      uint32_t time)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_down(resource, tool->grab_serial);
+	}
+}
+
+static void
+default_grab_tablet_tool_up(struct weston_tablet_tool_grab *grab,
+			    uint32_t time)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_up(resource);
+	}
+}
+
+static void
+default_grab_tablet_tool_pressure(struct weston_tablet_tool_grab *grab,
+				  uint32_t time,
+				  uint32_t pressure)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_pressure(resource, pressure);
+	}
+}
+
+static void
+default_grab_tablet_tool_distance(struct weston_tablet_tool_grab *grab,
+				  uint32_t time,
+				  uint32_t distance)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_pressure(resource, distance);
+	}
+}
+
+static void
+default_grab_tablet_tool_tilt(struct weston_tablet_tool_grab *grab,
+			      uint32_t time,
+			      int32_t tilt_x,
+			      int32_t tilt_y)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_tilt(resource, tilt_x, tilt_y);
+	}
+}
+
+static void
+default_grab_tablet_tool_button(struct weston_tablet_tool_grab *grab,
+				uint32_t time,
+				uint32_t button,
+				enum zwp_tablet_tool1_button_state state)
+{
+	struct weston_tablet_tool *tool = grab->tool;
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list) {
+			zwp_tablet_tool1_send_button(resource, tool->grab_serial,
+						   button, state);
+		}
+	}
+}
+
+static void
+default_grab_tablet_tool_frame(struct weston_tablet_tool_grab *grab,
+			       uint32_t time)
+{
+	struct wl_resource *resource;
+	struct wl_list *resource_list = &grab->tool->focus_resource_list;
+
+	if (!wl_list_empty(resource_list)) {
+		wl_resource_for_each(resource, resource_list)
+			zwp_tablet_tool1_send_frame(resource, time);
+	}
+}
+
+
+static void
+default_grab_tablet_tool_cancel(struct weston_tablet_tool_grab *grab)
+{
+}
+
+
+static struct weston_tablet_tool_grab_interface default_tablet_tool_grab_interface = {
+	default_grab_tablet_tool_proximity_in,
+	default_grab_tablet_tool_proximity_out,
+	default_grab_tablet_tool_motion,
+	default_grab_tablet_tool_down,
+	default_grab_tablet_tool_up,
+	default_grab_tablet_tool_pressure,
+	default_grab_tablet_tool_distance,
+	default_grab_tablet_tool_tilt,
+	default_grab_tablet_tool_button,
+	default_grab_tablet_tool_frame,
+	default_grab_tablet_tool_cancel,
+};
+
 WL_EXPORT struct weston_tablet_tool *
 weston_tablet_tool_create(void)
 {
@@ -762,6 +950,10 @@ weston_tablet_tool_create(void)
 
 	wl_list_init(&tool->focus_resource_listener.link);
 	tool->focus_resource_listener.notify = tablet_tool_focus_resource_destroyed;
+
+	tool->default_grab.interface = &default_tablet_tool_grab_interface;
+	tool->default_grab.tool = tool;
+	tool->grab = &tool->default_grab;
 
 	return tool;
 }
@@ -1914,12 +2106,18 @@ notify_tablet_tool_proximity_in(struct weston_tablet_tool *tool,
 				 uint32_t time,
 				 struct weston_tablet *tablet)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	grab->interface->proximity_in(grab, time, tablet);
 }
 
 WL_EXPORT void
 notify_tablet_tool_proximity_out(struct weston_tablet_tool *tool,
 				 uint32_t time)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	grab->interface->proximity_out(grab, time);
 }
 
 WL_EXPORT void
@@ -1927,24 +2125,44 @@ notify_tablet_tool_motion(struct weston_tablet_tool *tool,
 			  uint32_t time,
 			  wl_fixed_t x, wl_fixed_t y)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	weston_compositor_wake(tool->seat->compositor);
+
+	grab->interface->motion(grab, time, x, y);
 }
 
 WL_EXPORT void
 notify_tablet_tool_pressure(struct weston_tablet_tool *tool,
 			    uint32_t time, uint32_t pressure)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	weston_compositor_wake(tool->seat->compositor);
+
+	grab->interface->pressure(grab, time, pressure);
 }
 
 WL_EXPORT void
 notify_tablet_tool_distance(struct weston_tablet_tool *tool,
 			    uint32_t time, uint32_t distance)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	weston_compositor_wake(tool->seat->compositor);
+
+	grab->interface->distance(grab, time, distance);
 }
 
 WL_EXPORT void
 notify_tablet_tool_tilt(struct weston_tablet_tool *tool,
 			uint32_t time, int32_t tilt_x, int32_t tilt_y)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	weston_compositor_wake(tool->seat->compositor);
+
+	grab->interface->tilt(grab, time, tilt_x, tilt_y);
 }
 
 WL_EXPORT void
@@ -1953,24 +2171,59 @@ notify_tablet_tool_button(struct weston_tablet_tool *tool,
 			  uint32_t button,
 			  enum zwp_tablet_tool1_button_state state)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+	struct weston_compositor *compositor = tool->seat->compositor;
+
+	if (state == ZWP_TABLET_TOOL1_BUTTON_STATE_PRESSED) {
+		tool->button_count++;
+		if (tool->button_count == 1)
+			weston_compositor_idle_inhibit(compositor);
+	} else {
+		tool->button_count--;
+		if (tool->button_count == 1)
+			weston_compositor_idle_release(compositor);
+	}
+
+	tool->grab_serial = wl_display_next_serial(compositor->wl_display);
+	grab->interface->button(grab, time, button, state);
 }
 
 WL_EXPORT void
 notify_tablet_tool_down(struct weston_tablet_tool *tool,
 			uint32_t time)
 {
+	 struct weston_tablet_tool_grab *grab = tool->grab;
+	 struct weston_compositor *compositor = tool->seat->compositor;
+
+	 weston_compositor_idle_inhibit(compositor);
+
+	 tool->tip_is_down = true;
+	 tool->grab_serial = wl_display_get_serial(compositor->wl_display);
+
+	 grab->interface->down(grab, time);
 }
 
 WL_EXPORT void
 notify_tablet_tool_up(struct weston_tablet_tool *tool,
 		      uint32_t time)
 {
+	 struct weston_tablet_tool_grab *grab = tool->grab;
+	 struct weston_compositor *compositor = tool->seat->compositor;
+
+	 weston_compositor_idle_release(compositor);
+
+	 tool->tip_is_down = false;
+
+	 grab->interface->up(grab, time);
 }
 
 WL_EXPORT void
 notify_tablet_tool_frame(struct weston_tablet_tool *tool,
 			 uint32_t time)
 {
+	struct weston_tablet_tool_grab *grab = tool->grab;
+
+	grab->interface->frame(grab, time);
 }
 
 
