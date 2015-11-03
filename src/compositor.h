@@ -432,6 +432,12 @@ struct weston_tablet_tool {
 
 	int button_count;
 	bool tip_is_down;
+
+	int32_t hotspot_x, hotspot_y;
+	struct weston_view *sprite;
+	struct wl_listener sprite_destroy_listener;
+
+	wl_fixed_t x, y;
 };
 
 struct weston_tablet {
@@ -529,6 +535,13 @@ weston_tablet_tool_start_grab(struct weston_tablet_tool *tool,
 			      struct weston_tablet_tool_grab *grab);
 void
 weston_tablet_tool_end_grab(struct weston_tablet_tool *tool);
+
+void
+weston_tablet_tool_clamp(struct weston_tablet_tool *tool,
+			 wl_fixed_t *fx, wl_fixed_t *fy);
+void
+weston_tablet_tool_cursor_move(struct weston_tablet_tool *tool,
+			       wl_fixed_t x, wl_fixed_t y);
 
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
