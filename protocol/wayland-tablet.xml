@@ -146,7 +146,6 @@
       <arg name="surface" type="object" interface="wl_surface" allow-null="true"/>
       <arg name="hotspot_x" type="int" summary="x coordinate in surface-relative coordinates"/>
       <arg name="hotspot_y" type="int" summary="y coordinate in surface-relative coordinates"/>
-      <arg name="tablet" type="object" interface="wl_tablet" summary="the tablet the tool must be in proximity of" />
     </request>
 
     <request name="destroy" type="destructor">
