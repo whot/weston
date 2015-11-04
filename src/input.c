@@ -682,9 +682,29 @@ WL_EXPORT void
 weston_tablet_destroy(struct weston_tablet *tablet)
 {
 	struct wl_resource *resource;
+	struct weston_tablet_tool *tool, *tmp;
 
 	wl_resource_for_each(resource, &tablet->resource_list)
 		zwp_tablet1_send_removed(resource);
+
+	/* Check all tools whether they're linked with this tablet and break
+	 * that link. If the tool is left with no linked tablets after
+	 * this, we can destroy it. */
+	wl_list_for_each_safe(tool, tmp, &tablet->seat->tablet_tool_list, link) {
+		struct weston_tablet *t, *tmpt;
+		bool remove_tool = false;
+
+		wl_list_for_each_safe(t, tmpt, &tool->tablet_list, tool_link) {
+			if (t == tablet) {
+				wl_list_remove(&t->tool_link);
+				remove_tool = true;
+				break;
+			}
+		}
+
+		if (remove_tool && wl_list_empty(&tool->tablet_list))
+			weston_tablet_tool_destroy(tool);
+	}
 
 	wl_list_remove(&tablet->link);
 	free(tablet->name);
@@ -978,6 +998,7 @@ weston_tablet_tool_create(void)
 
 	wl_list_init(&tool->resource_list);
 	wl_list_init(&tool->focus_resource_list);
+	wl_list_init(&tool->tablet_list);
 
 	wl_list_init(&tool->sprite_destroy_listener.link);
 	tool->sprite_destroy_listener.notify = tablet_tool_handle_sprite_destroy;
@@ -1002,6 +1023,11 @@ WL_EXPORT void
 weston_tablet_tool_destroy(struct weston_tablet_tool *tool)
 {
 	struct wl_resource *resource, *tmp;
+
+	if (!wl_list_empty(&tool->tablet_list)) {
+		weston_log("error: tool still linked to a tablet\n");
+		return;
+	}
 
 	if (tool->sprite)
 		tablet_tool_unmap_sprite(tool);

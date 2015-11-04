@@ -334,10 +334,12 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 		return;
 	}
 
-	wl_list_for_each(tool, &device->seat->tablet_tool_list, link) {
-		if (tool->serial == serial && tool->type == type) {
-			create = false;
-			break;
+	if (serial) {
+		wl_list_for_each(tool, &device->seat->tablet_tool_list, link) {
+			if (tool->serial == serial && tool->type == type) {
+				create = false;
+				break;
+			}
 		}
 	}
 
@@ -361,9 +363,26 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 		    tool->capabilities |= 1 << ZWP_TABLET_TOOL1_CAPABILITY_TILT;
 
 		wl_list_insert(&device->seat->tablet_tool_list, &tool->link);
+		wl_list_insert(&tool->tablet_list, &tablet->tool_link);
+
 		notify_tablet_tool_added(tool);
 
 		libinput_tool_set_user_data(libinput_tool, tool);
+	}
+
+	if (serial && !create) {
+		struct weston_tablet *t;
+		bool add = true;
+
+		wl_list_for_each(t, &tool->tablet_list, tool_link) {
+			if (t == tablet) {
+				add = false;
+				break;
+			}
+		}
+
+		if (add)
+			wl_list_insert(&tool->tablet_list, &tablet->tool_link);
 	}
 
 	notify_tablet_tool_proximity_in(tool, time, tablet);
