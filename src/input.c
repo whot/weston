@@ -126,6 +126,26 @@ touch_focus_resource_destroyed(struct wl_listener *listener, void *data)
 }
 
 static void
+tablet_tool_focus_view_destroyed(struct wl_listener *listener, void *data)
+{
+	struct weston_tablet_tool *tool =
+		container_of(listener, struct weston_tablet_tool,
+			     focus_view_listener);
+
+	weston_tablet_tool_set_focus(tool, NULL, 0);
+}
+
+static void
+tablet_tool_focus_resource_destroyed(struct wl_listener *listener, void *data)
+{
+	struct weston_tablet_tool *tool =
+		container_of(listener, struct weston_tablet_tool,
+			     focus_resource_listener);
+
+	weston_tablet_tool_set_focus(tool, NULL, 0);
+}
+
+static void
 move_resources(struct wl_list *destination, struct wl_list *source)
 {
 	wl_list_insert_list(destination, source);
@@ -670,6 +690,61 @@ weston_tablet_destroy(struct weston_tablet *tablet)
 	free(tablet);
 }
 
+WL_EXPORT void
+weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
+			     struct weston_view *view,
+			     uint32_t time)
+{
+	struct wl_list *focus_resource_list;
+	struct wl_resource *resource;
+	struct weston_seat *seat = tool->seat;
+
+	focus_resource_list = &tool->focus_resource_list;
+	if (tool->focus && !wl_list_empty(focus_resource_list)) {
+		wl_resource_for_each(resource, focus_resource_list) {
+			zwp_tablet_tool1_send_proximity_out(resource);
+			zwp_tablet_tool1_send_frame(resource, time);
+		}
+
+		move_resources(&tool->resource_list, focus_resource_list);
+	}
+
+	if (find_resource_for_view(&tool->resource_list, view)) {
+		struct wl_client *surface_client =
+			wl_resource_get_client(view->surface->resource);
+
+		move_resources_for_client(focus_resource_list,
+					  &tool->resource_list,
+					  surface_client);
+
+		tool->focus_serial = wl_display_next_serial(seat->compositor->wl_display);
+		wl_resource_for_each(resource, focus_resource_list) {
+			struct wl_resource *tr;
+
+			tr = wl_resource_find_for_client(&tool->current_tablet->resource_list,
+							 surface_client);
+
+			zwp_tablet_tool1_send_proximity_in(resource, tool->focus_serial,
+							   tr, view->surface->resource);
+			zwp_tablet_tool1_send_frame(resource, time);
+		}
+	}
+
+	wl_list_remove(&tool->focus_view_listener.link);
+	wl_list_init(&tool->focus_view_listener.link);
+	wl_list_remove(&tool->focus_resource_listener.link);
+	wl_list_init(&tool->focus_resource_listener.link);
+
+	if (view)
+		wl_signal_add(&view->destroy_signal,
+			      &tool->focus_view_listener);
+	if (view && view->surface->resource)
+		wl_resource_add_destroy_listener(view->surface->resource,
+						 &tool->focus_resource_listener);
+	tool->focus = view;
+	tool->focus_view_listener.notify = tablet_tool_focus_view_destroyed;
+}
+
 WL_EXPORT struct weston_tablet_tool *
 weston_tablet_tool_create(void)
 {
@@ -680,6 +755,13 @@ weston_tablet_tool_create(void)
 		return NULL;
 
 	wl_list_init(&tool->resource_list);
+	wl_list_init(&tool->focus_resource_list);
+
+	wl_list_init(&tool->focus_view_listener.link);
+	tool->focus_view_listener.notify = tablet_tool_focus_view_destroyed;
+
+	wl_list_init(&tool->focus_resource_listener.link);
+	tool->focus_resource_listener.notify = tablet_tool_focus_resource_destroyed;
 
 	return tool;
 }
