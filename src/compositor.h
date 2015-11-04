@@ -408,8 +408,14 @@ struct weston_touch {
 struct weston_tablet_tool {
 	struct weston_seat *seat;
 	enum zwp_tablet_tool_v1_type type;
+	struct weston_tablet *current_tablet;
 
 	struct wl_list resource_list;
+	struct wl_list focus_resource_list;
+	struct weston_view *focus;
+	struct wl_listener focus_view_listener;
+	struct wl_listener focus_resource_listener;
+	uint32_t focus_serial;
 
 	struct wl_list link;
 
@@ -515,6 +521,10 @@ struct weston_tablet_tool *
 weston_tablet_tool_create(void);
 void
 weston_tablet_tool_destroy(struct weston_tablet_tool *tool);
+void
+weston_tablet_tool_set_focus(struct weston_tablet_tool *tool,
+			     struct weston_view *view,
+			     uint32_t time);
 
 void
 wl_data_device_set_keyboard_focus(struct weston_seat *seat);
