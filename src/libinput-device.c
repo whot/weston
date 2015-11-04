@@ -363,6 +363,7 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 	struct evdev_device *device;
 	struct weston_tablet *tablet;
 	struct weston_tablet_tool *tool;
+	struct weston_tablet_tool_id *id;
 	struct libinput_tablet_tool *libinput_tool;
 	enum libinput_tablet_tool_type libinput_tool_type;
 	uint32_t serial, type;
@@ -397,10 +398,12 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 		return;
 	}
 
-	wl_list_for_each(tool, &device->seat->tablet_tool_list, link) {
-		if (tool->serial == serial && tool->type == type) {
-			create = false;
-			break;
+	if (serial) {
+		wl_list_for_each(tool, &device->seat->tablet_tool_list, link) {
+			if (tool->serial == serial && tool->type == type) {
+				create = false;
+				break;
+			}
 		}
 	}
 
@@ -419,9 +422,39 @@ handle_tablet_proximity(struct libinput_device *libinput_device,
 		    tool->capabilities |= 1 << ZWP_TABLET_TOOL_V1_CAPABILITY_TILT;
 
 		wl_list_insert(&device->seat->tablet_tool_list, &tool->link);
+
+		id = zalloc(sizeof *id);
+		if (id) {
+			id->type = tool->type;
+			id->serial = serial;
+			wl_list_insert(&tablet->tool_id_list, &id->link);
+		}
+
 		notify_tablet_tool_added(tool);
 
 		libinput_tablet_tool_set_user_data(libinput_tool, tool);
+	}
+
+	if (serial && !create) {
+		struct weston_tablet_tool_id *id;
+		bool add = true;
+
+		wl_list_for_each(id, &tablet->tool_id_list, link) {
+			if (id->type == tool->type &&
+			    id->serial == tool->serial) {
+				add = false;
+				break;
+			}
+		}
+
+		if (add) {
+			id = zalloc(sizeof *id);
+			if (id) {
+				id->type = tool->type;
+				id->serial = tool->serial;
+				wl_list_insert(&tablet->tool_id_list, &id->link);
+			}
+		}
 	}
 
 	notify_tablet_tool_proximity_in(tool, time, tablet);

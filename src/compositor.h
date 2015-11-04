@@ -483,6 +483,13 @@ struct weston_tablet_tool {
 	wl_fixed_t grab_x, grab_y;
 };
 
+struct weston_tablet_tool_id {
+	struct wl_list link;
+
+	enum zwp_tablet_tool_v1_type type;
+	uint64_t serial;
+};
+
 struct weston_tablet {
 	struct weston_seat *seat;
 	struct evdev_device *device;
@@ -490,6 +497,7 @@ struct weston_tablet {
 	struct wl_list resource_list;
 
 	struct wl_list link;
+	struct wl_list tool_id_list;
 
 	char *name;
 	uint32_t vid;

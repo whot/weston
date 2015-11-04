@@ -869,6 +869,7 @@ weston_tablet_create(void)
 		return NULL;
 
 	wl_list_init(&tablet->resource_list);
+	wl_list_init(&tablet->tool_id_list);
 
 	return tablet;
 }
@@ -877,11 +878,41 @@ WL_EXPORT void
 weston_tablet_destroy(struct weston_tablet *tablet)
 {
 	struct wl_resource *resource;
+	struct weston_tablet *t;
+	struct weston_tablet_tool *tool, *tmptool;
+	struct weston_tablet_tool_id *id, *tmpid;
 
 	wl_resource_for_each(resource, &tablet->resource_list)
 		zwp_tablet_v1_send_removed(resource);
 
+	/* First drop all tool ids from this tablet */
+	wl_list_for_each_safe(id, tmpid, &tablet->tool_id_list, link) {
+		wl_list_remove(&id->link);
+		free(id);
+	}
+
+	/* Remove the tablet from the list */
 	wl_list_remove(&tablet->link);
+
+	/* For each tool, check remaining tablets for the stored ID list. If we
+	 * can't find this tool anywhere, we can drop it */
+	wl_list_for_each_safe(tool, tmptool,
+			      &tablet->seat->tablet_tool_list, link) {
+		bool remove_tool = true;
+
+		wl_list_for_each(t, &tablet->seat->tablet_list, link) {
+			wl_list_for_each(id, &t->tool_id_list, link) {
+				if (tool->type == id->type &&
+				    tool->serial == id->serial) {
+					remove_tool = false;
+					break;
+				}
+			}
+		}
+
+		if (remove_tool)
+			weston_seat_release_tablet_tool(tool);
+	}
 }
 
 WL_EXPORT void
@@ -3394,8 +3425,6 @@ weston_seat_release_pointer(struct weston_seat *seat)
 WL_EXPORT void
 weston_seat_release_tablet_tool(struct weston_tablet_tool *tool)
 {
-	/* FIXME: nothing is calling this function yet, tools are only
-	   released on shutdown when the seat goes away */
 	wl_signal_emit(&tool->removed_signal, tool);
 
 	weston_tablet_tool_destroy(tool);
