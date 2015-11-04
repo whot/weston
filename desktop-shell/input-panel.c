@@ -30,7 +30,7 @@
 #include <string.h>
 
 #include "shell.h"
-#include "desktop-shell-server-protocol.h"
+#include "weston-desktop-shell-server-protocol.h"
 #include "input-method-unstable-v1-server-protocol.h"
 #include "shared/helpers.h"
 
