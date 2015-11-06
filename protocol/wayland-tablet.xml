@@ -303,7 +303,6 @@
 	of proximity in.
       </description>
       <arg name="serial" type="uint"/>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="tablet" type="object" interface="wl_tablet" summary="The tablet the tool is in proximity of"/>
       <arg name="surface" type="object" interface="wl_surface" summary="The current surface the tablet tool is over"/>
     </event>
@@ -323,7 +322,6 @@
 	be sent until the button is actually released or the tool leaves the
 	proximity of the tablet.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
     </event>
 
     <event name="down">
@@ -335,7 +333,6 @@
 	wl_tablet::frame event.
       </description>
       <arg name="serial" type="uint"/>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
     </event>
 
     <event name="up">
@@ -344,14 +341,12 @@
 	the tablet, or when the tablet tool moves off of a surface while it was
 	making contact with the tablet's surface.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
     </event>
 
     <event name="motion">
       <description summary="motion event">
 	Sent whenever a tablet tool moves.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="x" type="fixed" summary="surface-relative x coordinate"/>
       <arg name="y" type="fixed" summary="surface-relative y coordinate"/>
     </event>
@@ -361,7 +356,6 @@
 	Sent whenever the pressure axis on a tool changes. The value of this
 	event is normalized to a value between 0 and 65535.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="pressure" type="uint" summary="The current pressure value"/>
     </event>
 
@@ -370,7 +364,6 @@
 	Sent whenever the distance axis on a tool changes. The value of this
 	event is normalized to a value between 0 and 65535.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="distance" type="uint" summary="The current distance value"/>
     </event>
 
@@ -379,7 +372,6 @@
 	Sent whenever one or both of the tilt axes on a tool change. Each tilt
 	value is normalized between -65535 and 65535.
       </description>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="tilt_x" type="int" summary="The current value of the X tilt axis"/>
       <arg name="tilt_y" type="int" summary="The current value of the Y tilt axis"/>
     </event>
@@ -398,7 +390,6 @@
       </description>
 
       <arg name="serial" type="uint"/>
-      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
       <arg name="button" type="uint" summary="The button whose state has changed"/>
       <arg name="state" type="uint" summary="Whether the button was pressed or released"/>
     </event>
@@ -410,6 +401,7 @@
 	sequentially, however all events within a frame should be considered
 	one hardware event.
       </description>
+      <arg name="time" type="uint" summary="The time of the event with millisecond granularity"/>
     </event>
 
     <enum name="error">
